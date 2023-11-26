@@ -1,5 +1,7 @@
 import math
 
+import pygame
+
 
 def angle_from_to_point(point1: (int, int), point2: (int, int)):
     x = point2[0] - point1[0]
@@ -21,8 +23,21 @@ def angle_from_to_point(point1: (int, int), point2: (int, int)):
     return ans
 
 
-def middle_angle():
-    return 1
+def calculate_rects(count, box_size: int, x_offset):
+    ans = []
+    for i in range(1, 5):
+        if count <= math.pow(i, 2):
+            res = i
+            break
+    x = 0
+    y = 0
+    for i in range(count):
+        ans.append(pygame.Rect((x_offset + (box_size / res) * x, (box_size / res) * y), (box_size / res, box_size / res)))
+        x += 1
+        if x >= res:
+            x = 0
+            y += 1
+    return ans
 
 
 def distance_between_points(point1, point2):
