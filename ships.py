@@ -2,14 +2,19 @@ import math
 import random
 import pygame
 import pygame_gui
+from pygame_gui.core import ObjectID
 
 import trigonometry
 import modules
+
+
 # noinspection SpellCheckingInspection
 
 
 class Ship:
-    def __init__(self, weight: int, max_speed: int, img: str, pos: (int, int), manager, high_modules: [modules.module]=[], mid_modules: [modules.module]=[], low_modules: [modules.module]=[]):
+    def __init__(self, weight: int, max_speed: int, img: str, pos: (int, int), manager,
+                 high_modules: [modules.module] = [], mid_modules: [modules.module] = [],
+                 low_modules: [modules.module] = []):
         # Характеристики
         self.weight = weight
         self.max_speed = max_speed
@@ -41,7 +46,7 @@ class Ship:
         self.high_modules = high_modules
         self.high_module_slots = []
         self.high_modules_ui = []
-        self.mid_modiles = mid_modules
+        self.mid_modules = mid_modules
         self.low_modules = low_modules
 
         self.ui_container = None
@@ -60,11 +65,16 @@ class Ship:
     def physic(self, all_ships):
         for i in all_ships:
             try:
-                if trigonometry.distance_between_points((self.x, self.y), (i.x, i.y)) < (self.diagonal / 2 + i.diagonal / 2) and i != self:
-                    strenght = (((self.diagonal / 2 + i.diagonal / 2) / trigonometry.distance_between_points((self.x, self.y), (i.x, i.y))) - 1) * 5
+                if trigonometry.distance_between_points((self.x, self.y), (i.x, i.y)) < (
+                        self.diagonal / 2 + i.diagonal / 2) and i != self:
+                    strenght = (((self.diagonal / 2 + i.diagonal / 2) / trigonometry.distance_between_points(
+                        (self.x, self.y), (i.x, i.y))) - 1) * 5
                     ang = trigonometry.angle_from_to_point((self.x, self.y), (i.x, i.y))
-                    i.x -= trigonometry.clamp(-i.diagonal, 0.2 * self.weight * math.pow(strenght, 3) * -math.cos(ang / 180 * math.pi), i.diagonal)
-                    i.y -= trigonometry.clamp(-i.diagonal, 0.2 * self.weight * math.pow(strenght, 3) * math.sin(ang / 180 * math.pi), i.diagonal)
+                    i.x -= trigonometry.clamp(-i.diagonal, 0.2 * self.weight * math.pow(strenght, 3) * -math.cos(
+                        ang / 180 * math.pi), i.diagonal)
+                    i.y -= trigonometry.clamp(-i.diagonal,
+                                              0.2 * self.weight * math.pow(strenght, 3) * math.sin(ang / 180 * math.pi),
+                                              i.diagonal)
             except ZeroDivisionError:
                 ang = random.uniform(0, 360)
                 i.x -= trigonometry.clamp(0, 0.2 * self.weight * 27 * -math.cos(ang / 180 * math.pi),
@@ -106,7 +116,8 @@ class Ship:
 
         # Поворот корабля к точке назначения
         if self.dist_type == 'point' or self.dist_type == 'orbit':
-            if abs(self.angle - self.dist_dir) > 1 and trigonometry.distance_between_points((self.x, self.y), self.dist) >= self.max_speed * 8:
+            if abs(self.angle - self.dist_dir) > 1 and trigonometry.distance_between_points((self.x, self.y),
+                                                                                            self.dist) >= self.max_speed * 8:
                 if abs(self.angle - self.dist_dir) > 180:
                     t_angle = self.angle - 180 if self.angle > 180 else 360 - (180 - self.angle)
                     t_between = self.dist_dir - 180 if self.dist_dir > 180 else 360 - (180 - self.dist_dir)
@@ -118,7 +129,8 @@ class Ship:
             ang = trigonometry.angle_from_to_point(self.dist, (self.x, self.y))
             point = (self.dist[0] - self.dist_const * -math.cos(ang / 180 * math.pi), self.dist[1] - self.dist_const *
                      math.sin(ang / 180 * math.pi))
-            if abs(self.angle - self.dist_dir) > 1 and trigonometry.distance_between_points((self.x, self.y), point) >= self.max_speed * 5:
+            if abs(self.angle - self.dist_dir) > 1 and trigonometry.distance_between_points((self.x, self.y),
+                                                                                            point) >= self.max_speed * 5:
                 if abs(self.angle - self.dist_dir) > 180:
                     t_angle = self.angle - 180 if self.angle > 180 else 360 - (180 - self.angle)
                     t_between = self.dist_dir - 180 if self.dist_dir > 180 else 360 - (180 - self.dist_dir)
@@ -165,36 +177,49 @@ class Ship:
         img = pygame.transform.rotozoom(self.img0, self.angle, scale)
         rect = img.get_rect()
         rect.center = math.floor(self.x) * scale + cam_pos[0], math.floor(self.y) * scale + cam_pos[1]
-        pygame.draw.rect(screen, (0, 0, 255, 100), ((self.dist[0] - 6) * scale + cam_pos[0], (self.dist[1] - 6) * scale + cam_pos[1], 12, 12))
+        pygame.draw.rect(screen, (0, 0, 255, 100),
+                         ((self.dist[0] - 6) * scale + cam_pos[0], (self.dist[1] - 6) * scale + cam_pos[1], 12, 12))
         screen.blit(img, rect)
         # До сюда
 
     def init_ui(self, manager):
+        button_normal = pygame.image.load('textures/UI/module_button.png')
         self.ui_container = pygame_gui.core.UIContainer(relative_rect=pygame.Rect((-70, 0), (500, 70)), manager=manager,
                                                         anchors={'right': 'right', 'top': 'top'},
                                                         container=manager.root_container)
+
         temp_list = self.high_modules
+        res = trigonometry.calculate_res(len(self.high_modules))
+        res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
         for rect in trigonometry.calculate_rects(len(self.high_modules), 70, 100):
             module = temp_list.pop()
             pygame_gui.elements.UIButton(
                 relative_rect=rect,
                 manager=manager,
-                text=module.name,
-                container=self.ui_container)
+                text='',
+                container=self.ui_container,
+                object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str))
 
-        temp_list = self.mid_modiles
-        for rect in trigonometry.calculate_rects(len(self.mid_modiles), 70, 200):
+        temp_list = self.mid_modules
+        res = trigonometry.calculate_res(len(self.mid_modules))
+        res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
+        for rect in trigonometry.calculate_rects(len(self.mid_modules), 70, 200):
             module = temp_list.pop()
             pygame_gui.elements.UIButton(relative_rect=rect, manager=manager,
-                                         text=module.name,
-                                         container=self.ui_container)
+                                         text='',
+                                         container=self.ui_container,
+                                         object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str))
 
         temp_list = self.low_modules
+        res = trigonometry.calculate_res(len(self.low_modules))
+        res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
         for rect in trigonometry.calculate_rects(len(self.low_modules), 70, 300):
             module = temp_list.pop()
             pygame_gui.elements.UIButton(relative_rect=rect, manager=manager,
                                          text=module.name,
-                                         container=self.ui_container)
+                                         container=self.ui_container,
+                                         object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str))
+
         pygame_gui.elements.UIImage(relative_rect=pygame.Rect((0, 0), (70, 70)), manager=manager,
                                     image_surface=self.img0,
                                     container=self.ui_container)

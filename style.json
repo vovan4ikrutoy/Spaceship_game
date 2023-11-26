@@ -1,0 +1,15 @@
+ {
+     "button": {
+       "colours": {
+         "normal_border": "#333333",
+         "hovered_border": "#333333",
+         "disabled_border": "#333333",
+         "selected_border": "#333333",
+         "active_border": "#333333"
+       },
+       "misc": {
+         "shape": "ellipse",
+         "border_width": "5"
+       }
+     }
+ }

@@ -23,12 +23,16 @@ def angle_from_to_point(point1: (int, int), point2: (int, int)):
     return ans
 
 
+def calculate_res(count):
+    for i in range(1, 3):
+        if count <= math.pow(i, 2):
+            return i
+    raise ZeroDivisionError('Well... f*ck. Error from calculate_res? Seriously?')
+
+
 def calculate_rects(count, box_size: int, x_offset):
     ans = []
-    for i in range(1, 5):
-        if count <= math.pow(i, 2):
-            res = i
-            break
+    res = calculate_res(count)
     x = 0
     y = 0
     for i in range(count):
