@@ -1,8 +1,12 @@
 import math
 import random
+from ctypes import Union
+from typing import Tuple, Optional, Dict, Iterable
+
 import pygame
 import pygame_gui
-from pygame_gui.core import ObjectID
+from pygame_gui.core import ObjectID, IContainerLikeInterface, UIElement
+from pygame_gui.core.interfaces import IUIManagerInterface
 
 import trigonometry
 import modules
@@ -12,10 +16,11 @@ import modules
 
 
 class Ship:
-    def __init__(self, weight: int, max_speed: int, img: str, pos: (int, int), manager,
-                 high_modules: [modules.module] = [], mid_modules: [modules.module] = [],
-                 low_modules: [modules.module] = []):
+    def __init__(self, weight: int, max_speed: int, img: str, pos: (int, int), manager, name,
+                 high_modules: [modules.Module] = [], mid_modules: [modules.Module] = [],
+                 low_modules: [modules.Module] = []):
         # Характеристики
+        self.name = name
         self.weight = weight
         self.max_speed = max_speed
 
@@ -39,7 +44,7 @@ class Ship:
         self.target = None
         self.dist = pos
         self.dist_dir = self.angle
-        self.dist_type = 'point'
+        self.dist_type = 'stop'
         self.dist_const = 0
 
         # Модули
@@ -193,32 +198,37 @@ class Ship:
         res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
         for rect in trigonometry.calculate_rects(len(self.high_modules), 70, 100):
             module = temp_list.pop()
-            pygame_gui.elements.UIButton(
+            UIButtonWithModule(
                 relative_rect=rect,
                 manager=manager,
-                text='',
+                text='21312312312',
                 container=self.ui_container,
-                object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str))
+                object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
+                module=module)
 
         temp_list = self.mid_modules
         res = trigonometry.calculate_res(len(self.mid_modules))
         res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
         for rect in trigonometry.calculate_rects(len(self.mid_modules), 70, 200):
             module = temp_list.pop()
-            pygame_gui.elements.UIButton(relative_rect=rect, manager=manager,
-                                         text='',
-                                         container=self.ui_container,
-                                         object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str))
+            UIButtonWithModule(
+                relative_rect=rect, manager=manager,
+                text='2312312312',
+                container=self.ui_container,
+                object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
+                module=module)
 
         temp_list = self.low_modules
         res = trigonometry.calculate_res(len(self.low_modules))
         res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
         for rect in trigonometry.calculate_rects(len(self.low_modules), 70, 300):
             module = temp_list.pop()
-            pygame_gui.elements.UIButton(relative_rect=rect, manager=manager,
-                                         text=module.name,
-                                         container=self.ui_container,
-                                         object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str))
+            UIButtonWithModule(
+                relative_rect=rect, manager=manager,
+                text=module.name,
+                container=self.ui_container,
+                object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
+                module=module)
 
         pygame_gui.elements.UIImage(relative_rect=pygame.Rect((0, 0), (70, 70)), manager=manager,
                                     image_surface=self.img0,
@@ -231,3 +241,49 @@ class Ship:
 
     def hide_ui(self):
         self.ui_container.hide()
+
+
+class UIButtonWithModule(pygame_gui.elements.UIButton):
+    def __init__(self, relative_rect: pygame.Rect | Tuple[float, float] | pygame.Vector2,
+                 text: str,
+                 manager: Optional[IUIManagerInterface] = None,
+                 container: Optional[IContainerLikeInterface] = None,
+                 tool_tip_text: str | None = None,
+                 starting_height: int = 1,
+                 parent_element: UIElement = None,
+                 object_id: ObjectID | str | None = None,
+                 anchors: str | UIElement = None,
+                 allow_double_clicks: bool = False,
+                 generate_click_events_from: Iterable[int] = frozenset([pygame.BUTTON_LEFT]),
+                 visible: int = 1,
+                 *,
+                 tool_tip_object_id: Optional[ObjectID] = None,
+                 text_kwargs: Optional[Dict[str, str]] = None,
+                 tool_tip_text_kwargs: Optional[Dict[str, str]] = None, module: modules.Module = None):
+        super().__init__(relative_rect, text, manager, container, tool_tip_text, starting_height, parent_element,
+                         object_id, anchors, allow_double_clicks, generate_click_events_from, visible,
+                         tool_tip_object_id=tool_tip_object_id, text_kwargs=text_kwargs, tool_tip_text_kwargs=tool_tip_text_kwargs)
+        self.module = module
+
+
+class UIButtonWithShip(pygame_gui.elements.UIButton):
+    def __init__(self, relative_rect: pygame.Rect | Tuple[float, float] | pygame.Vector2,
+                 text: str,
+                 manager: Optional[IUIManagerInterface] = None,
+                 container: Optional[IContainerLikeInterface] = None,
+                 tool_tip_text: str | None = None,
+                 starting_height: int = 1,
+                 parent_element: UIElement = None,
+                 object_id: ObjectID | str | None = None,
+                 anchors: str | UIElement = None,
+                 allow_double_clicks: bool = False,
+                 generate_click_events_from: Iterable[int] = frozenset([pygame.BUTTON_LEFT]),
+                 visible: int = 1,
+                 *,
+                 tool_tip_object_id: Optional[ObjectID] = None,
+                 text_kwargs: Optional[Dict[str, str]] = None,
+                 tool_tip_text_kwargs: Optional[Dict[str, str]] = None, ship: Ship = None):
+        super().__init__(relative_rect, text, manager, container, tool_tip_text, starting_height, parent_element,
+                         object_id, anchors, allow_double_clicks, generate_click_events_from, visible,
+                         tool_tip_object_id=tool_tip_object_id, text_kwargs=text_kwargs, tool_tip_text_kwargs=tool_tip_text_kwargs)
+        self.ship = ship
