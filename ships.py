@@ -1,6 +1,5 @@
 import math
 import random
-from ctypes import Union
 from typing import Tuple, Optional, Dict, Iterable
 
 import pygame
@@ -16,16 +15,39 @@ import modules
 
 
 class Ship:
-    def __init__(self, weight: int, max_speed: int, img: str, pos: (int, int), manager, name,
-                 high_modules: [modules.Module] = [], mid_modules: [modules.Module] = [],
-                 low_modules: [modules.Module] = []):
+    def __init__(self, name: str, weight: float, max_speed: float, max_shield: float, max_armor: float, max_hull: float,
+                 img: str, pos: tuple, manager: pygame_gui.UIManager, cont: pygame_gui.elements.ui_vertical_scroll_bar,
+                 team='player', scale=float(1), high_modules=None, mid_modules=None, low_modules=None,
+                 high_module_slots=None):
+
+        if high_module_slots is None:
+            high_module_slots = []
+        if high_modules is None:
+            high_modules = []
+        if mid_modules is None:
+            mid_modules = []
+        if low_modules is None:
+            low_modules = []
+
         # Характеристики
         self.name = name
         self.weight = weight
         self.max_speed = max_speed
 
+        self.max_shield = max_shield
+        self.max_armor = max_armor
+        self.max_hull = max_hull
+
+        self.shield = max_shield
+        self.armor = max_armor
+        self.hull = max_hull
+
+        self.team = team
+
         # Визуальные данные
+        self.scale = scale
         self.img0 = pygame.image.load(img)
+        self.img0 = pygame.transform.rotozoom(self.img0, 0, self.scale)
         self.img0.convert()
         self.to_render = []
 
@@ -49,13 +71,13 @@ class Ship:
 
         # Модули
         self.high_modules = high_modules
-        self.high_module_slots = []
-        self.high_modules_ui = []
+        self.high_module_slots = high_module_slots
         self.mid_modules = mid_modules
         self.low_modules = low_modules
 
+        self.tags = []
         self.ui_container = None
-        self.init_ui(manager)
+        self.init_ui(manager, cont)
 
     def set_target(self, target, dist_type: str, dist_const=0):
         if type(target) == tuple:
@@ -75,10 +97,11 @@ class Ship:
                     strenght = (((self.diagonal / 2 + i.diagonal / 2) / trigonometry.distance_between_points(
                         (self.x, self.y), (i.x, i.y))) - 1) * 5
                     ang = trigonometry.angle_from_to_point((self.x, self.y), (i.x, i.y))
-                    i.x -= trigonometry.clamp(-i.diagonal, 0.2 * self.weight * math.pow(strenght, 3) * -math.cos(
+                    i.x -= trigonometry.clamp(-i.diagonal, 0.2 * self.weight * math.pow(strenght, 1.3) * -math.cos(
                         ang / 180 * math.pi), i.diagonal)
                     i.y -= trigonometry.clamp(-i.diagonal,
-                                              0.2 * self.weight * math.pow(strenght, 3) * math.sin(ang / 180 * math.pi),
+                                              0.2 * self.weight * math.pow(strenght,
+                                                                           1.3) * math.sin(ang / 180 * math.pi),
                                               i.diagonal)
             except ZeroDivisionError:
                 ang = random.uniform(0, 360)
@@ -88,7 +111,11 @@ class Ship:
                                           i.diagonal)
                 i.speed *= 0.2
 
-    def think(self, ships_around):
+    def think(self, delta_time):
+        # for i in self.mid_modules:
+        #     if i.is_passive is False:
+        #         i.passed_time +=
+
         if self.target is not None:
             self.dist = (self.target.x, self.target.y)
 
@@ -120,28 +147,34 @@ class Ship:
             pass
 
         # Поворот корабля к точке назначения
+        spd_cof = 0.0166 / delta_time
+
         if self.dist_type == 'point' or self.dist_type == 'orbit':
-            if abs(self.angle - self.dist_dir) > 1 and trigonometry.distance_between_points((self.x, self.y),
-                                                                                            self.dist) >= self.max_speed * 8:
+            if (abs(self.angle - self.dist_dir) > 1
+                    and trigonometry.distance_between_points((self.x, self.y), self.dist) >= self.max_speed * 8):
                 if abs(self.angle - self.dist_dir) > 180:
                     t_angle = self.angle - 180 if self.angle > 180 else 360 - (180 - self.angle)
                     t_between = self.dist_dir - 180 if self.dist_dir > 180 else 360 - (180 - self.dist_dir)
-                    self.angle = (((t_angle * self.weight + t_between) / (self.weight + 1)) + 180) % 360
+                    self.angle = (((t_angle * self.weight * spd_cof + t_between)
+                                   / (self.weight * spd_cof + 1)) + 180) % 360
                 else:
-                    self.angle = ((self.angle * self.weight + self.dist_dir) / (self.weight + 1)) % 360
+                    self.angle = ((self.angle * self.weight * spd_cof + self.dist_dir)
+                                  / (self.weight * spd_cof + 1)) % 360
 
         elif self.dist_type == 'distance':
             ang = trigonometry.angle_from_to_point(self.dist, (self.x, self.y))
             point = (self.dist[0] - self.dist_const * -math.cos(ang / 180 * math.pi), self.dist[1] - self.dist_const *
                      math.sin(ang / 180 * math.pi))
-            if abs(self.angle - self.dist_dir) > 1 and trigonometry.distance_between_points((self.x, self.y),
-                                                                                            point) >= self.max_speed * 5:
+            if (abs(self.angle - self.dist_dir) > 1
+                    and trigonometry.distance_between_points((self.x, self.y), point) >= self.max_speed * 5):
                 if abs(self.angle - self.dist_dir) > 180:
                     t_angle = self.angle - 180 if self.angle > 180 else 360 - (180 - self.angle)
                     t_between = self.dist_dir - 180 if self.dist_dir > 180 else 360 - (180 - self.dist_dir)
-                    self.angle = (((t_angle * self.weight + t_between) / (self.weight + 1)) + 180) % 360
+                    self.angle = ((((t_angle * self.weight * spd_cof + t_between) / (self.weight * spd_cof + 1)) + 180)
+                                  % 360)
                 else:
-                    self.angle = ((self.angle * self.weight + self.dist_dir) / (self.weight + 1)) % 360
+                    self.angle = (((self.angle * self.weight * spd_cof + self.dist_dir) / (self.weight * spd_cof + 1))
+                                  % 360)
 
         elif self.dist_type == 'stop':
             pass
@@ -174,70 +207,97 @@ class Ship:
 
         elif self.dist_type == 'stop':
             self.speed *= 0.95
-        self.x += self.speed * math.cos(self.speed_dir / 180 * math.pi)
-        self.y += self.speed * -math.sin(self.speed_dir / 180 * math.pi)
+        self.x += self.speed * math.cos(self.speed_dir / 180 * math.pi) * 60 * delta_time
+        self.y += self.speed * -math.sin(self.speed_dir / 180 * math.pi) * 60 * delta_time
 
     def render(self, screen, scale, cam_pos):
-        # Рендеринг корабля
+        # Рендер подсказок
+        pygame.draw.rect(screen, (0, 0, 255, 100),
+                         ((self.dist[0] - 6) * scale + cam_pos[0] * scale,
+                          (self.dist[1] - 6) * scale + cam_pos[1] * scale, 12, 12))
+
+        # Рендер корабля
         img = pygame.transform.rotozoom(self.img0, self.angle, scale)
         rect = img.get_rect()
-        rect.center = math.floor(self.x) * scale + cam_pos[0], math.floor(self.y) * scale + cam_pos[1]
-        pygame.draw.rect(screen, (0, 0, 255, 100),
-                         ((self.dist[0] - 6) * scale + cam_pos[0], (self.dist[1] - 6) * scale + cam_pos[1], 12, 12))
+        rect.center = math.floor(self.x) * scale + cam_pos[0] * scale, math.floor(self.y) * scale + cam_pos[1] * scale
         screen.blit(img, rect)
-        # До сюда
 
-    def init_ui(self, manager):
-        button_normal = pygame.image.load('textures/UI/module_button.png')
-        self.ui_container = pygame_gui.core.UIContainer(relative_rect=pygame.Rect((-70, 0), (500, 70)), manager=manager,
-                                                        anchors={'right': 'right', 'top': 'top'},
-                                                        container=manager.root_container)
+        # Рендер пушек
+        for i in range(len(self.high_modules)):
+            if hasattr(self.high_modules[i], 'base_img'):
+                center = trigonometry.rotate((0, 0),
+                                             (self.high_module_slots[i][0], self.high_module_slots[i][1]),
+                                             -math.radians(self.angle))
 
-        temp_list = self.high_modules
-        res = trigonometry.calculate_res(len(self.high_modules))
-        res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
-        for rect in trigonometry.calculate_rects(len(self.high_modules), 70, 100):
-            module = temp_list.pop()
-            UIButtonWithModule(
-                relative_rect=rect,
-                manager=manager,
-                text='21312312312',
-                container=self.ui_container,
-                object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
-                module=module)
+                img = pygame.transform.rotozoom(self.high_modules[i].base_img, self.angle, scale * 1.5)
+                rect = img.get_rect()
+                rect.center = ((math.floor(self.x) + cam_pos[0] + center[0]) * scale,
+                               (math.floor(self.y) + cam_pos[1] + center[1]) * scale)
+                screen.blit(img, rect)
 
-        temp_list = self.mid_modules
-        res = trigonometry.calculate_res(len(self.mid_modules))
-        res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
-        for rect in trigonometry.calculate_rects(len(self.mid_modules), 70, 200):
-            module = temp_list.pop()
-            UIButtonWithModule(
-                relative_rect=rect, manager=manager,
-                text='2312312312',
-                container=self.ui_container,
-                object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
-                module=module)
+                if self.high_modules[i].target is not None:
+                    angle = trigonometry.angle_from_to_point((math.floor(self.x) + center[0],
+                                                              math.floor(self.y) + center[1]),
+                                                             (self.high_modules[i].target.x,
+                                                              self.high_modules[i].target.y))
+                else:
+                    angle = self.angle
+                img = pygame.transform.rotozoom(self.high_modules[i].gun_img, angle, scale * 1.5)
+                rect = img.get_rect()
+                rect.center = ((math.floor(self.x) + cam_pos[0] + center[0]) * scale,
+                               (math.floor(self.y) + cam_pos[1] + center[1]) * scale)
+                screen.blit(img, rect)
 
-        temp_list = self.low_modules
-        res = trigonometry.calculate_res(len(self.low_modules))
-        res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
-        for rect in trigonometry.calculate_rects(len(self.low_modules), 70, 300):
-            module = temp_list.pop()
-            UIButtonWithModule(
-                relative_rect=rect, manager=manager,
-                text=module.name,
-                container=self.ui_container,
-                object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
-                module=module)
+    def init_ui(self, manager, cont):
+        if self.team == 'player':
+            self.ui_container = pygame_gui.core.UIContainer(relative_rect=pygame.Rect((0, 0), (500, 70)),
+                                                            manager=manager,
+                                                            container=cont)
+            res = trigonometry.calculate_res(len(self.high_modules))
+            res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
+            for rect, i in trigonometry.calculate_rects(len(self.high_modules), 70, 80):
+                module = self.high_modules[i]
+                UIButtonWithModule(
+                    relative_rect=rect,
+                    manager=manager,
+                    text='21312312312',
+                    container=self.ui_container,
+                    object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
+                    module=module,
+                    self_ship=self)
 
-        pygame_gui.elements.UIImage(relative_rect=pygame.Rect((0, 0), (70, 70)), manager=manager,
-                                    image_surface=self.img0,
-                                    container=self.ui_container)
-        self.ui_container.hide()
+            res = trigonometry.calculate_res(len(self.mid_modules))
+            res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
+            for rect, i in trigonometry.calculate_rects(len(self.mid_modules), 70, 160):
+                module = self.mid_modules[i]
+                UIButtonWithModule(
+                    relative_rect=rect, manager=manager,
+                    text='2312312312',
+                    container=self.ui_container,
+                    object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
+                    module=module,
+                    self_ship=self)
 
-    def show_ui(self, manager, pos):
+            res = trigonometry.calculate_res(len(self.low_modules))
+            res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
+            for rect, i in trigonometry.calculate_rects(len(self.low_modules), 70, 240):
+                module = self.low_modules[i]
+                UIButtonWithModule(
+                    relative_rect=rect, manager=manager,
+                    text=module.name,
+                    container=self.ui_container,
+                    object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
+                    module=module,
+                    self_ship=self)
+
+            pygame_gui.elements.UIImage(relative_rect=pygame.Rect((0, 0), (70, 70)), manager=manager,
+                                        image_surface=self.img0,
+                                        container=self.ui_container)
+            self.ui_container.hide()
+
+    def show_ui(self, pos):
         self.ui_container.show()
-        self.ui_container.set_relative_position((-400, pos))
+        self.ui_container.set_relative_position((20, pos))
 
     def hide_ui(self):
         self.ui_container.hide()
@@ -259,11 +319,13 @@ class UIButtonWithModule(pygame_gui.elements.UIButton):
                  *,
                  tool_tip_object_id: Optional[ObjectID] = None,
                  text_kwargs: Optional[Dict[str, str]] = None,
-                 tool_tip_text_kwargs: Optional[Dict[str, str]] = None, module: modules.Module = None):
+                 tool_tip_text_kwargs: Optional[Dict[str, str]] = None, module: modules.Module = None, self_ship):
         super().__init__(relative_rect, text, manager, container, tool_tip_text, starting_height, parent_element,
                          object_id, anchors, allow_double_clicks, generate_click_events_from, visible,
-                         tool_tip_object_id=tool_tip_object_id, text_kwargs=text_kwargs, tool_tip_text_kwargs=tool_tip_text_kwargs)
+                         tool_tip_object_id=tool_tip_object_id, text_kwargs=text_kwargs,
+                         tool_tip_text_kwargs=tool_tip_text_kwargs)
         self.module = module
+        self.self_ship = self_ship
 
 
 class UIButtonWithShip(pygame_gui.elements.UIButton):
@@ -285,5 +347,6 @@ class UIButtonWithShip(pygame_gui.elements.UIButton):
                  tool_tip_text_kwargs: Optional[Dict[str, str]] = None, ship: Ship = None):
         super().__init__(relative_rect, text, manager, container, tool_tip_text, starting_height, parent_element,
                          object_id, anchors, allow_double_clicks, generate_click_events_from, visible,
-                         tool_tip_object_id=tool_tip_object_id, text_kwargs=text_kwargs, tool_tip_text_kwargs=tool_tip_text_kwargs)
+                         tool_tip_object_id=tool_tip_object_id, text_kwargs=text_kwargs,
+                         tool_tip_text_kwargs=tool_tip_text_kwargs)
         self.ship = ship
