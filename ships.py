@@ -1,5 +1,6 @@
 import math
 import random
+import time
 from typing import Tuple, Optional, Dict, Iterable
 
 import pygame
@@ -9,6 +10,7 @@ from pygame_gui.core.interfaces import IUIManagerInterface
 
 import trigonometry
 import modules
+import bullets
 
 
 # noinspection SpellCheckingInspection
@@ -49,7 +51,7 @@ class Ship:
         self.img0 = pygame.image.load(img)
         self.img0 = pygame.transform.rotozoom(self.img0, 0, self.scale)
         self.img0.convert()
-        self.to_render = []
+        self.bullets = []
 
         # Физические данные
         self.angle = 0
@@ -242,6 +244,8 @@ class Ship:
                                                               self.high_modules[i].target.y))
                 else:
                     angle = self.angle
+                self.high_modules[i].update_info((math.floor(self.x) + center[0], math.floor(self.y) + center[1]),
+                                                 angle)
                 img = pygame.transform.rotozoom(self.high_modules[i].gun_img, angle, scale * 1.5)
                 rect = img.get_rect()
                 rect.center = ((math.floor(self.x) + cam_pos[0] + center[0]) * scale,

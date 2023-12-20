@@ -56,7 +56,6 @@ screen = pygame.display.set_mode((1920, 900))
 manager = pygame_gui.UIManager((1920, 900), 'style.json')
 manager.get_theme().load_theme('buttons.json')
 background = pygame.image.load('textures/UI/bg.jpg')
-# background.fill(pygame.Color('#000000'))
 fps_counter = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((0, 0), (20, 20)), manager=manager, text='60')
 clock = pygame.time.Clock()
 done = False
@@ -64,23 +63,29 @@ center = (910, 450)
 ui_scroll = pygame_gui.elements.UIScrollingContainer(pygame.Rect(0, 0, 500, 900), manager)
 ui_scroll.set_scrollable_area_dimensions((0, 0))
 
+# Важно! Список пуль для обработки, он общий для всех кораблей и их модулей
+bullets = []
+
 all_ships = \
     [ships.Ship(name='player ship', weight=5, max_speed=5, max_shield=700, max_armor=300, max_hull=200,
                 img='textures/ships/test_ship.png', pos=(0, 0), manager=manager, cont=ui_scroll, team='player',
                 scale=2,
                 high_modules=[modules.StatisWebfier('statis web', 'statis_webfire',
                                                     1, 'textures/turrets/basic_base.png',
-                                                    'textures/turrets/gun.png') for _ in range(2)],
+                                                    'textures/turrets/gun.png', bullets, 'player'),
+                              modules.SmallRailgun('railgun', 'small_railgun',
+                                                   1, 'textures/turrets/basic_base.png',
+                                                   'textures/turrets/gun.png', bullets, 'player')],
                 mid_modules=[modules.SmallShieldBooster('heal', 'small_shield_booster', 1)
                              for _ in range(4)], high_module_slots=[(-25, -42), (-25, 42)])
-     for _ in range(3)]
+     for _ in range(5)]
 for _ in range(1):
     all_ships.append(ships.Ship(name='enemy ship', weight=20, max_speed=2, max_shield=1500, max_armor=800, max_hull=350,
                                 img='textures/ships/test_enemy.png', pos=(300, 0), manager=manager, cont=ui_scroll,
                                 team='enemy', scale=3,
                                 high_modules=[modules.StatisWebfier('statis web', 'statis_webfire', 1,
                                                                     'textures/turrets/basic_base.png',
-                                                                    'textures/turrets/gun.png')],
+                                                                    'textures/turrets/gun.png', bullets, 'player')],
                                 mid_modules=[modules.SmallShieldBooster('heal', 'small_shield_booster', 1) for _ in
                                              range(4)], high_module_slots=[(0, 0)]))
 game_speed = 1
@@ -89,6 +94,7 @@ game_speed = 1
 scale = 0.6
 cam_x, cam_y = 0, 0
 scroll_sense = 0.05
+min_zoom, max_zoom = 0.1, 1
 
 # Выбор кораблей
 selected_ships = []
@@ -190,17 +196,17 @@ while not done:
                 is_targeting = False
         elif event.type == pygame.MOUSEWHEEL:
             if event.y == 1:
-                if scale >= 0.5 + scroll_sense:
+                if scale <= max_zoom - scroll_sense:
                     cam_x -= (1920 * (1 / scale) - 1920 * (1 / (scale + scroll_sense))) / 3
                     cam_y -= (900 * (1 / scale) - 900 * (1 / (scale + scroll_sense))) / 3
-                scale += scroll_sense
-                scale = trigonometry.clamp(0.5, scale, 2)
+                    scale += scroll_sense
+                    scale = trigonometry.clamp(min_zoom, scale, max_zoom)
             else:
-                if scale >= 0.5 + scroll_sense:
+                if scale >= min_zoom + scroll_sense:
                     cam_x += (1920 * (1 / (scale - scroll_sense)) - 1920 * (1 / scale)) / 3
                     cam_y += (900 * (1 / (scale - scroll_sense)) - 900 * (1 / scale)) / 3
-                scale -= scroll_sense
-                scale = trigonometry.clamp(0.5, scale, 2)
+                    scale -= scroll_sense
+                    scale = trigonometry.clamp(min_zoom, scale, max_zoom)
         elif event.type == pygame_gui.UI_BUTTON_PRESSED:
             if type(event.ui_element) == ships.UIButtonWithModule:
                 if event.ui_element.module.target_type == 'enemy':
@@ -225,6 +231,11 @@ while not done:
     for r_ship in all_ships:
         r_ship.think(time_delta * game_speed)
         r_ship.physic(all_ships)
+    for bullet in bullets:
+        if bullet.dead:
+            bullets.remove(bullet)
+        else:
+            bullet.think(time_delta * game_speed, all_ships)
     # До сюда
 
     # Рендеринг кораблей
@@ -236,11 +247,14 @@ while not done:
     # for t in threads:
     #     t.join()
     camera_rect = pygame.Rect((-cam_x - 200, -cam_y - 200, 2520 / scale, 1300 / scale))
-    ships_for_render = []
+    things_for_render = []
     for i in all_ships:
         if camera_rect.collidepoint(i.x, i.y):
-            ships_for_render.append(i)
-    for r_ship in ships_for_render:
+            things_for_render.append(i)
+    for i in bullets:
+        if camera_rect.collidepoint(i.x, i.y):
+            things_for_render.append(i)
+    for r_ship in things_for_render:
         r_ship.render(screen, scale, (cam_x, cam_y))
 
     # Обработка выбора кораблей через ctrl
