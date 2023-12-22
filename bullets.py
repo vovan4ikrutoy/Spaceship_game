@@ -17,8 +17,8 @@ class Bullet:
         self.dead = False
 
     def think(self, delta_time, all_ships):
-        self.x += math.cos(math.radians(self.angle)) * self.speed
-        self.y -= math.sin(math.radians(self.angle)) * self.speed
+        self.x += math.cos(math.radians(self.angle)) * self.speed * (delta_time / 0.01666)
+        self.y -= math.sin(math.radians(self.angle)) * self.speed * (delta_time / 0.01666)
         for ship in all_ships:
             if (ship.team != self.team
                     and (trigonometry.distance_between_points((self.x, self.y), (ship.x, ship.y))
@@ -34,4 +34,4 @@ class Bullet:
 
 class SmallRailgunBullet(Bullet):
     def __init__(self, pos, angle, team):
-        super().__init__(pos, angle, 10, 3, 25, 'textures/bullets/bullet.png', team)
+        super().__init__(pos, angle, 20, 8, 25, 'textures/bullets/bullet.png', team)

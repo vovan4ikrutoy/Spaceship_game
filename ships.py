@@ -51,7 +51,6 @@ class Ship:
         self.img0 = pygame.image.load(img)
         self.img0 = pygame.transform.rotozoom(self.img0, 0, self.scale)
         self.img0.convert()
-        self.bullets = []
 
         # Физические данные
         self.angle = 0
@@ -114,9 +113,10 @@ class Ship:
                 i.speed *= 0.2
 
     def think(self, delta_time):
-        # for i in self.mid_modules:
-        #     if i.is_passive is False:
-        #         i.passed_time +=
+        for i in self.high_modules:
+            i.think(delta_time)
+        for i in self.mid_modules:
+            i.think(delta_time)
 
         if self.target is not None:
             self.dist = (self.target.x, self.target.y)
@@ -254,17 +254,22 @@ class Ship:
 
     def init_ui(self, manager, cont):
         if self.team == 'player':
-            self.ui_container = pygame_gui.core.UIContainer(relative_rect=pygame.Rect((0, 0), (500, 70)),
+            self.ui_container = pygame_gui.core.UIContainer(relative_rect=pygame.Rect((0, 0), (410, 100)),
                                                             manager=manager,
                                                             container=cont)
+
+            pygame_gui.elements.UIImage(relative_rect=pygame.Rect((0, 0), (70, 70)), manager=manager,
+                                        image_surface=self.img0,
+                                        container=self.ui_container)
+
             res = trigonometry.calculate_res(len(self.high_modules))
             res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
-            for rect, i in trigonometry.calculate_rects(len(self.high_modules), 70, 80):
+            for rect, i in trigonometry.calculate_rects(len(self.high_modules), 80, 80):
                 module = self.high_modules[i]
                 UIButtonWithModule(
                     relative_rect=rect,
                     manager=manager,
-                    text='21312312312',
+                    text='',
                     container=self.ui_container,
                     object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
                     module=module,
@@ -272,11 +277,11 @@ class Ship:
 
             res = trigonometry.calculate_res(len(self.mid_modules))
             res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
-            for rect, i in trigonometry.calculate_rects(len(self.mid_modules), 70, 160):
+            for rect, i in trigonometry.calculate_rects(len(self.mid_modules), 80, 180):
                 module = self.mid_modules[i]
                 UIButtonWithModule(
                     relative_rect=rect, manager=manager,
-                    text='2312312312',
+                    text='',
                     container=self.ui_container,
                     object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
                     module=module,
@@ -284,7 +289,7 @@ class Ship:
 
             res = trigonometry.calculate_res(len(self.low_modules))
             res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
-            for rect, i in trigonometry.calculate_rects(len(self.low_modules), 70, 240):
+            for rect, i in trigonometry.calculate_rects(len(self.low_modules), 80, 280):
                 module = self.low_modules[i]
                 UIButtonWithModule(
                     relative_rect=rect, manager=manager,
@@ -294,14 +299,13 @@ class Ship:
                     module=module,
                     self_ship=self)
 
-            pygame_gui.elements.UIImage(relative_rect=pygame.Rect((0, 0), (70, 70)), manager=manager,
-                                        image_surface=self.img0,
-                                        container=self.ui_container)
             self.ui_container.hide()
 
     def show_ui(self, pos):
         self.ui_container.show()
         self.ui_container.set_relative_position((20, pos))
+        return [(button.module, (button.relative_rect.x, pos + button.relative_rect.y), button.relative_rect.width)
+                for button in self.ui_container.elements[1:]]
 
     def hide_ui(self):
         self.ui_container.hide()

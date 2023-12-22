@@ -1,7 +1,7 @@
-import time
-
 import pygame
 import json
+
+from pygame_gui.core import ObjectID
 
 import modules
 import trigonometry
@@ -16,22 +16,13 @@ with open('buttons.json', 'w') as f:
     bb = dict()
     bb["@friendly_buttons"] = dict()
     bb['#button_64'] = {'colours': {"normal_border": "#333333",
-                                    "hovered_border": "#333333",
-                                    "disabled_border": "#333333",
-                                    "selected_border": "#333333",
-                                    "active_border": "#333333"},
+                                    "normal_bg": "#444444"},
                         'misc': {"shape": "ellipse", "border_width": "4"}}
     bb['#button_32'] = {'colours': {"normal_border": "#333333",
-                                    "hovered_border": "#333333",
-                                    "disabled_border": "#333333",
-                                    "selected_border": "#333333",
-                                    "active_border": "#333333"},
+                                    "normal_bg": "#444444"},
                         'misc': {"shape": "ellipse", "border_width": "2"}}
     bb['#button_16'] = {'colours': {"normal_border": "#333333",
-                                    "hovered_border": "#333333",
-                                    "disabled_border": "#333333",
-                                    "selected_border": "#333333",
-                                    "active_border": "#333333"},
+                                    "normal_bg": "#444444"},
                         'misc': {"shape": "ellipse", "border_width": "1"}}
     with open('modules.txt', 'r') as m:
         for i in map(str.rstrip, m.readlines()):
@@ -60,34 +51,42 @@ fps_counter = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((0, 0), (20,
 clock = pygame.time.Clock()
 done = False
 center = (910, 450)
-ui_scroll = pygame_gui.elements.UIScrollingContainer(pygame.Rect(0, 0, 500, 900), manager)
+ui_scroll = pygame_gui.elements.UIScrollingContainer(pygame.Rect(0, 0, 410, 900), manager)
 ui_scroll.set_scrollable_area_dimensions((0, 0))
+
+all_buttons_container = pygame_gui.core.UIContainer(relative_rect=pygame.Rect(0, 0, 400, 70), manager=manager,
+                                                    container=ui_scroll)
+all_high = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((100, 20, 85, 50)), text='High',
+                                        manager=manager, container=all_buttons_container,
+                                        object_id=ObjectID(class_id='@friendly_buttons', object_id='#all_button'))
+all_mid = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((200, 20, 85, 50)), text='Mid',
+                                       manager=manager, container=all_buttons_container,
+                                       object_id=ObjectID(class_id='@friendly_buttons', object_id='#all_button'))
+all_low = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((300, 20, 85, 50)), text='Low',
+                                       manager=manager, container=all_buttons_container,
+                                       object_id=ObjectID(class_id='@friendly_buttons', object_id='#all_button'))
 
 # Важно! Список пуль для обработки, он общий для всех кораблей и их модулей
 bullets = []
+# Список модулей на рендер
+buttons_for_render = []
 
 all_ships = \
     [ships.Ship(name='player ship', weight=5, max_speed=5, max_shield=700, max_armor=300, max_hull=200,
                 img='textures/ships/test_ship.png', pos=(0, 0), manager=manager, cont=ui_scroll, team='player',
                 scale=2,
-                high_modules=[modules.StatisWebfier('statis web', 'statis_webfire',
-                                                    1, 'textures/turrets/basic_base.png',
-                                                    'textures/turrets/gun.png', bullets, 'player'),
-                              modules.SmallRailgun('railgun', 'small_railgun',
-                                                   1, 'textures/turrets/basic_base.png',
-                                                   'textures/turrets/gun.png', bullets, 'player')],
-                mid_modules=[modules.SmallShieldBooster('heal', 'small_shield_booster', 1)
-                             for _ in range(4)], high_module_slots=[(-25, -42), (-25, 42)])
-     for _ in range(5)]
+                high_modules=[modules.SmallRailgun(bullets, 'player') for _ in range(2)],
+                mid_modules=[modules.SmallShieldBooster() for _ in range(4)],
+                low_modules=[modules.SmallShieldReinforcement() for _ in range(9)],
+                high_module_slots=[(-25, -42), (-25, 42)])
+     for _ in range(11)]
 for _ in range(1):
     all_ships.append(ships.Ship(name='enemy ship', weight=20, max_speed=2, max_shield=1500, max_armor=800, max_hull=350,
                                 img='textures/ships/test_enemy.png', pos=(300, 0), manager=manager, cont=ui_scroll,
                                 team='enemy', scale=3,
-                                high_modules=[modules.StatisWebfier('statis web', 'statis_webfire', 1,
-                                                                    'textures/turrets/basic_base.png',
-                                                                    'textures/turrets/gun.png', bullets, 'player')],
-                                mid_modules=[modules.SmallShieldBooster('heal', 'small_shield_booster', 1) for _ in
-                                             range(4)], high_module_slots=[(0, 0)]))
+                                high_modules=[modules.StatisWebfier() for _ in range(3)],
+                                mid_modules=[modules.SmallShieldBooster() for _ in range(4)],
+                                high_module_slots=[(50, 0), (-63, 50), (-63, -50)]))
 game_speed = 1
 
 # Камера
@@ -95,6 +94,7 @@ scale = 0.6
 cam_x, cam_y = 0, 0
 scroll_sense = 0.05
 min_zoom, max_zoom = 0.1, 1
+ships_ui_offset = 70
 
 # Выбор кораблей
 selected_ships = []
@@ -177,6 +177,7 @@ while not done:
             elif event.key == pygame.K_ESCAPE:
                 for i in selected_ships:
                     i.hide_ui()
+                    buttons_for_render = []
                     ui_scroll.set_scrollable_area_dimensions((0, 0))
                 selected_ships = []
             elif event.key == pygame.K_c:
@@ -209,13 +210,49 @@ while not done:
                     scale = trigonometry.clamp(min_zoom, scale, max_zoom)
         elif event.type == pygame_gui.UI_BUTTON_PRESSED:
             if type(event.ui_element) == ships.UIButtonWithModule:
-                if event.ui_element.module.target_type == 'enemy':
-                    if active_target is not None:
-                        event.ui_element.module.activate(active_target.ship)
-                elif event.ui_element.module.target_type == 'self':
-                    event.ui_element.module.activate(event.ui_element.self_ship)
+                if not event.ui_element.module.is_passive:
+                    if event.ui_element.module.target_type == 'enemy':
+                        if active_target is not None:
+                            event.ui_element.module.activate(active_target.ship)
+                    elif event.ui_element.module.target_type == 'self':
+                        event.ui_element.module.activate(event.ui_element.self_ship)
             elif type(event.ui_element) == ships.UIButtonWithShip:
                 active_target = event.ui_element
+
+            # Кнопки быстрой активации всех модулей одной категории
+            elif event.ui_element == all_high:
+                for modules in map(lambda ship: (getattr(ship, 'high_modules'), ship) if ship.team == 'player' else None,
+                                   all_ships):
+                    if modules is not None:
+                        for module in modules[0]:
+                            if not module.is_passive and not module.active:
+                                if module.target_type == 'enemy':
+                                    if active_target is not None:
+                                        module.activate(active_target.ship)
+                                elif module.target_type == 'self':
+                                    module.activate(modules[1])
+            elif event.ui_element == all_mid:
+                for modules in map(lambda ship: (getattr(ship, 'mid_modules'), ship) if ship.team == 'player' else None,
+                                   all_ships):
+                    if modules is not None:
+                        for module in modules[0]:
+                            if not module.is_passive and not module.active:
+                                if module.target_type == 'enemy':
+                                    if active_target is not None:
+                                        module.activate(active_target.ship)
+                                elif module.target_type == 'self':
+                                    module.activate(modules[1])
+            elif event.ui_element == all_low:
+                for modules in map(lambda ship: (getattr(ship, 'low_modules'), ship) if ship.team == 'player' else None,
+                                   all_ships):
+                    if modules is not None:
+                        for module in modules[0]:
+                            if not module.is_passive and not module.active:
+                                if module.target_type == 'enemy':
+                                    if active_target is not None:
+                                        module.activate(active_target.ship)
+                                elif module.target_type == 'self':
+                                    module.activate(modules[1])
 
     pressed = pygame.key.get_pressed()
     if pressed[pygame.K_w]:
@@ -238,8 +275,7 @@ while not done:
             bullet.think(time_delta * game_speed, all_ships)
     # До сюда
 
-    # Рендеринг кораблей
-    start = time.time()
+    # Рендеринг
     screen.blit(background, (0, 0))
     # threads = [Thread(target=r_ship.render, args=(screen, scale, (cam_x, cam_y),)) for r_ship in all_ships]
     # for t in threads:
@@ -287,10 +323,16 @@ while not done:
         else:
             selected_ships = ans
         counter = 0
+        buttons_for_render = []
         for i in selected_ships:
-            i.show_ui(70 * counter + 20)
+            buttons_for_render.append(i.show_ui(100 * counter + ships_ui_offset))
             counter += 1
-        ui_scroll.set_scrollable_area_dimensions((450, trigonometry.clamp(900, 70 * counter + 20, 9999)))
+        if len(selected_ships) > 1:
+            all_buttons_container.show()
+        else:
+            all_buttons_container.hide()
+        ui_scroll.set_scrollable_area_dimensions((390, trigonometry.clamp(900, 100 * counter + ships_ui_offset,
+                                                                          9999)))
 
     # Обработка выбора целей через shift
     if is_targeting and not is_selecting:
@@ -324,7 +366,7 @@ while not done:
         pygame.draw.circle(screen, (105, 105, 105), (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
                            (i.diagonal / 1.8) * scale, 5)
     for i in targets:
-        pygame.draw.circle(screen, (155, 155, 155), (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
+        pygame.draw.circle(screen, (255, 100, 100), (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
                            (i.diagonal / 1.9) * scale, 5)
     if active_target is not None:
         pygame.draw.circle(screen, (155, 155, 155), (active_target.rect.x + 50, active_target.rect.y + 50),
@@ -346,4 +388,17 @@ while not done:
     fps_counter.set_text(str(trigonometry.clamp(0, int(clock.get_fps()), 60)))
     manager.update(time_delta)
     manager.draw_ui(screen)
+    for i in buttons_for_render:
+        for module in i:
+            if not module[0].is_passive and module[0].passed <= module[0].cooldown:
+                progress = module[0].passed / module[0].cooldown
+                if module[0].active:
+                    color = (0, 255 * progress, 0)
+                else:
+                    color = (255 * progress, 0, 0)
+                pygame.draw.circle(screen, color,
+                                   (module[1][0] + 20 + module[2] / 2,
+                                    module[1][1] + module[2] / 2 - ui_scroll.vert_scroll_bar.scroll_position * 4 / 3
+                                    if ui_scroll.vert_scroll_bar else 0),
+                                   module[2] / 2, width=2)
     pygame.display.update()

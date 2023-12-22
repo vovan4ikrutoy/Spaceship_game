@@ -35,7 +35,7 @@ def rotate(origin, point, angle):
 
 
 def calculate_res(count):
-    for i in range(1, 3):
+    for i in range(1, 4):
         if count <= math.pow(i, 2):
             return i
     raise ZeroDivisionError('Well... f*ck. Error from calculate_res? Seriously?')
@@ -47,7 +47,7 @@ def calculate_rects(count, box_size: int, x_offset):
     x = 0
     y = 0
     for i in range(count):
-        ans.append((pygame.Rect((x_offset + (box_size / res) * x, (box_size / res) * y),
+        ans.append((pygame.Rect((x_offset + ((box_size + 10) / res) * x, ((box_size + 10) / res) * y),
                                 (box_size / res, box_size / res)), i))
         x += 1
         if x >= res:
