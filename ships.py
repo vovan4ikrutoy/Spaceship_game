@@ -358,3 +358,23 @@ class UIButtonWithShip(pygame_gui.elements.UIButton):
                          tool_tip_object_id=tool_tip_object_id, text_kwargs=text_kwargs,
                          tool_tip_text_kwargs=tool_tip_text_kwargs)
         self.ship = ship
+
+
+class ShipLevelHolder:
+    def __init__(self, name: str, weight: float, max_speed: float, max_shield: float, max_armor: float, max_hull: float,
+                 img: str, pos: tuple, team='player', scale=float(1), high_modules=None, mid_modules=None,
+                 low_modules=None, high_module_slots=None):
+        self.name = name
+        self.weight = weight
+        self.max_speed = max_speed
+        self.max_shield = max_shield
+        self.max_armor = max_armor
+        self.max_hull = max_hull
+        self.img = img
+        self.pos = pos
+        self.team = team
+        self.scale = scale
+        self.high_modules = high_modules
+        self.mid_modules = mid_modules
+        self.low_modules = low_modules
+        self.high_module_slots = high_module_slots
