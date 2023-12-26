@@ -230,6 +230,8 @@ class Ship:
             pygame.draw.circle(screen, (50, 50, 255), (point[0] * scale + cam_pos[0] * scale,
                                                        point[1] * scale + cam_pos[1] * scale),
                                10)
+            pygame.draw.circle(screen, (50, 50, 255), (self.dist[0] * scale + cam_pos[0] * scale,
+                               self.dist[1] * scale + cam_pos[1] * scale), 10)
 
     def render(self, screen, scale, cam_pos):
 

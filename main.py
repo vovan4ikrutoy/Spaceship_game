@@ -202,7 +202,7 @@ def main(level: Level):
                             distance = trigonometry.distance_between_points((pygame.mouse.get_pos()[0] /
                                                                              scale - cam_x, pygame.mouse.get_pos()[1]
                                                                              / scale - cam_y),
-                                                                            (orbit_target.x, orbit_target.y))
+                                                                            (orbit_target.x, orbit_target.y) if type(orbit_target) != tuple else (orbit_target[0], orbit_target[1]))
                             j.set_target(orbit_target, 'orbit', trigonometry.clamp(400, distance,
                                                                                    9999))
                         else:
@@ -214,7 +214,7 @@ def main(level: Level):
                             distance = trigonometry.distance_between_points((pygame.mouse.get_pos()[0] /
                                                                              scale - cam_x, pygame.mouse.get_pos()[1]
                                                                              / scale - cam_y),
-                                                                            (distance_target.x, distance_target.y))
+                                                                            (distance_target.x, distance_target.y) if type(distance_target) != tuple else (distance_target[0], distance_target[1]))
                             j.set_target(distance_target, 'distance', trigonometry.clamp(400, distance,
                                                                                          9999))
                         else:
