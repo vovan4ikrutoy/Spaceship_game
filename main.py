@@ -13,7 +13,7 @@ def main(level: Level):
     import ships
     import pygame_gui
     # Иницалиазация файла стиля кнопок
-    with open('buttons.json', 'w') as f:
+    with open('data/buttons.json', 'w') as f:
         bb = dict()
         bb["@friendly_buttons"] = dict()
         bb['#button_64'] = {'colours': {"normal_border": "#333333",
@@ -25,7 +25,7 @@ def main(level: Level):
         bb['#button_16'] = {'colours': {"normal_border": "#333333",
                                         "normal_bg": "#444444"},
                             'misc': {"shape": "ellipse", "border_width": "1"}}
-        with open('modules.txt', 'r') as m:
+        with open('data/modules.txt', 'r') as m:
             for i in map(str.rstrip, m.readlines()):
                 bb[f'#{i}_64'] = {'prototype': '#button_64',
                                   'images': {
@@ -48,8 +48,8 @@ def main(level: Level):
     # Иницализация игры и интерфейса
     pygame.init()
     screen = pygame.display.set_mode((width, height))
-    manager = pygame_gui.UIManager((width, height), 'style.json')
-    manager.get_theme().load_theme('buttons.json')
+    manager = pygame_gui.UIManager((width, height), 'data/style.json')
+    manager.get_theme().load_theme('data/buttons.json')
     background = pygame.image.load('textures/UI/bg.jpg')
     fps_counter = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((0, 0), (20, 20)), manager=manager, text='60')
     clock = pygame.time.Clock()
@@ -91,6 +91,7 @@ def main(level: Level):
                        high_modules=[modules.StatisWebfier() for _ in range(3)],
                        mid_modules=[modules.SmallShieldBooster() for _ in range(4)],
                        high_module_slots=[(50, 0), (-63, 50), (-63, -50)]))
+    # Игра
     game_speed = 1
 
     # Камера
@@ -405,7 +406,7 @@ def main(level: Level):
         for i in now_targeting:
             pygame.draw.circle(screen, (105, 105, 105), (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
                                (i.diagonal / 1.8) * scale, 5)
-        for i in targets:
+        for i in [getattr(x, 'ship') for x in targets]:
             pygame.draw.circle(screen, (255, 100, 100), (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
                                (i.diagonal / 1.9) * scale, 5)
         if active_target is not None:
@@ -417,9 +418,8 @@ def main(level: Level):
         for i in now_targeting.keys():
             now_targeting[i] -= time_delta
             if now_targeting[i] < 0:
-                ships.UIButtonWithShip(relative_rect=pygame.Rect(1300 - len(targets) * 120, 0, 100, 100), text=i.name,
-                                       manager=manager, ship=i)
-                targets.append(i)
+                targets.append(ships.UIButtonWithShip(relative_rect=pygame.Rect(1300 - len(targets) * 120, 0, 100, 100),
+                                                      text=i.name,  manager=manager, ship=i))
                 ans.append(i)
         for i in ans:
             del now_targeting[i]

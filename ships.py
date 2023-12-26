@@ -52,6 +52,10 @@ class Ship:
         self.img0 = pygame.transform.rotozoom(self.img0, 0, self.scale)
         self.img0.convert()
 
+        self.cached_scale = 500
+        self.cached_angle = 999
+        self.cached_image = None
+
         # Физические данные
         self.angle = 0
         self.x, self.y = pos
@@ -234,12 +238,14 @@ class Ship:
                                self.dist[1] * scale + cam_pos[1] * scale), 10)
 
     def render(self, screen, scale, cam_pos):
-
         # Рендер корабля
-        img = pygame.transform.rotozoom(self.img0, self.angle, scale)
-        rect = img.get_rect()
+        if abs(self.angle - self.cached_angle) > 5 or abs(scale - self.cached_scale) > 0.04:
+            self.cached_image = pygame.transform.rotozoom(self.img0, self.angle, scale)
+            self.cached_angle = self.angle
+            self.cached_scale = scale
+        rect = self.cached_image.get_rect()
         rect.center = math.floor(self.x) * scale + cam_pos[0] * scale, math.floor(self.y) * scale + cam_pos[1] * scale
-        screen.blit(img, rect)
+        screen.blit(self.cached_image, rect)
 
         # Рендер пушек
         for i in range(len(self.high_modules)):

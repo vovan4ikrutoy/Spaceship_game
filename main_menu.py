@@ -40,7 +40,7 @@ pygame.init()
 background = pygame.image.load('textures/UI/main_bg.jpg')
 (width, height) = (1920, 1080)
 screen = pygame.display.set_mode((width, height))
-manager = pygame_gui.UIManager((width, height), 'style.json')
+manager = pygame_gui.UIManager((width, height), 'data/style.json')
 clock = pygame.time.Clock()
 pygame.display.set_caption('Tutorial 1')
 screen.blit(background, (0, 0))
@@ -50,7 +50,7 @@ main_container = pygame_gui.core.UIContainer(pygame.Rect(0, 0, width, height), m
 title = pygame_gui.elements.UILabel(pygame.Rect((460 * math.pow(width / 1920, 2), 0, 1000, 200)), manager=manager,
                                     text='Spaceship Game', container=main_container,
                                     object_id=ObjectID(object_id='#Title_text', class_id='@boba'))
-tet = pygame_gui.elements.UITextBox('<font pixel_size=42>Project by <img src="logo.png">'
+tet = pygame_gui.elements.UITextBox('<font pixel_size=42>Project by <img src="textures/UI/logo.png">'
                                     ' <a href="vova">Vladimir Yakuba<a/></font>',
                                     pygame.Rect((600 * math.pow(width / 1920, 2), 180, 1000, 200)), manager=manager,
                                     container=main_container,
