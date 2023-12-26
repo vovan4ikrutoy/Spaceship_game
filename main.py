@@ -54,7 +54,6 @@ def main(level: Level):
     fps_counter = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((0, 0), (20, 20)), manager=manager, text='60')
     clock = pygame.time.Clock()
     done = False
-    center = (910, 450)
     ui_scroll = pygame_gui.elements.UIScrollingContainer(pygame.Rect(0, 0, 410, height), manager)
     ui_scroll.set_scrollable_area_dimensions((0, 0))
 
@@ -85,20 +84,22 @@ def main(level: Level):
                     high_module_slots=[(-25, -42), (-25, 42)])
          for _ in range(11)]
     for _ in range(1):
-        all_ships.append(ships.Ship(name='enemy ship', weight=20, max_speed=2, max_shield=1500, max_armor=800, max_hull=350,
-                                    img='textures/ships/test_enemy.png', pos=(300, 0), manager=manager, cont=ui_scroll,
-                                    team='enemy', scale=3,
-                                    high_modules=[modules.StatisWebfier() for _ in range(3)],
-                                    mid_modules=[modules.SmallShieldBooster() for _ in range(4)],
-                                    high_module_slots=[(50, 0), (-63, 50), (-63, -50)]))
+        all_ships.append(
+            ships.Ship(name='enemy ship', weight=20, max_speed=2, max_shield=1500, max_armor=800, max_hull=350,
+                       img='textures/ships/test_enemy.png', pos=(300, 0), manager=manager, cont=ui_scroll,
+                       team='enemy', scale=3,
+                       high_modules=[modules.StatisWebfier() for _ in range(3)],
+                       mid_modules=[modules.SmallShieldBooster() for _ in range(4)],
+                       high_module_slots=[(50, 0), (-63, 50), (-63, -50)]))
     game_speed = 1
 
     # Камера
-    scale = 0.6
+    scale = 1
     cam_x, cam_y = 0, 0
     scroll_sense = 0.05
     min_zoom, max_zoom = 0.1, 1
     ships_ui_offset = 70
+    draw_hints = True
 
     # Выбор кораблей
     selected_ships = []
@@ -116,6 +117,14 @@ def main(level: Level):
     temp_targeting = False
     active_target = None
 
+    # Орбита
+    is_orbiting = False
+    orbit_target = None
+
+    # Дистанция
+    is_distance = False
+    distance_target = None
+
     while not done:
         time_delta = clock.tick(60) / 1000.0
 
@@ -130,22 +139,21 @@ def main(level: Level):
                         x, y = pygame.mouse.get_pos()[0] - cam_x * scale, pygame.mouse.get_pos()[1] - cam_y * scale
                         for i in all_ships:
                             if trigonometry.distance_between_points((i.x, i.y),
-                                                                    (x * (1 / scale), y * (1 / scale))) <= i.diagonal / 2:
-                                for j in selected_ships:
-                                    if i != j:
-                                        j.set_target(i, 'orbit', 400)
-                                    else:
-                                        j.set_target(i, 'stop')
+                                                                    (x * (1 / scale),
+                                                                     y * (1 / scale))) <= i.diagonal / 2:
+                                orbit_target = i
+                                is_orbiting = True
                                 break
                         else:
-                            for i in selected_ships:
-                                i.set_target((x * (1 / scale), y * (1 / scale)), 'orbit', 400)
+                            orbit_target = (x * (1 / scale), y * (1 / scale))
+                            is_orbiting = True
                 elif event.key == pygame.K_f:
                     if len(selected_ships) != 0:
                         x, y = pygame.mouse.get_pos()[0] - cam_x * scale, pygame.mouse.get_pos()[1] - cam_y * scale
                         for i in all_ships:
                             if trigonometry.distance_between_points((i.x, i.y),
-                                                                    (x * (1 / scale), y * (1 / scale))) <= i.diagonal / 2:
+                                                                    (x * (1 / scale),
+                                                                     y * (1 / scale))) <= i.diagonal / 2:
                                 for j in selected_ships:
                                     if j != i:
                                         j.set_target(i, 'point')
@@ -164,16 +172,14 @@ def main(level: Level):
                         x, y = pygame.mouse.get_pos()[0] - cam_x * scale, pygame.mouse.get_pos()[1] - cam_y * scale
                         for i in all_ships:
                             if trigonometry.distance_between_points((i.x, i.y),
-                                                                    (x * (1 / scale), y * (1 / scale))) <= i.diagonal / 2:
-                                for j in selected_ships:
-                                    if i != j:
-                                        j.set_target(i, 'distance', 600)
-                                    else:
-                                        j.set_target(i, 'stop')
+                                                                    (x * (1 / scale),
+                                                                     y * (1 / scale))) <= i.diagonal / 2:
+                                distance_target = i
+                                is_distance = True
                                 break
                         else:
-                            for i in selected_ships:
-                                i.set_target((x * (1 / scale), y * (1 / scale)), 'distance', 300)
+                            distance_target = (x * (1 / scale), y * (1 / scale))
+                            is_distance = True
                 elif event.key == pygame.K_g:
                     if len(selected_ships) != 0:
                         for i in selected_ships:
@@ -187,6 +193,33 @@ def main(level: Level):
                 elif event.key == pygame.K_c:
                     targets = []
                     now_targeting = dict()
+                elif event.key == pygame.K_LALT:
+                    draw_hints = not draw_hints
+            elif event.type == pygame.KEYUP:
+                if event.key == pygame.K_r and is_orbiting:
+                    for j in selected_ships:
+                        if orbit_target != j:
+                            distance = trigonometry.distance_between_points((pygame.mouse.get_pos()[0] /
+                                                                             scale - cam_x, pygame.mouse.get_pos()[1]
+                                                                             / scale - cam_y),
+                                                                            (orbit_target.x, orbit_target.y))
+                            j.set_target(orbit_target, 'orbit', trigonometry.clamp(400, distance,
+                                                                                   9999))
+                        else:
+                            j.set_target(orbit_target, 'stop')
+                    break
+                if event.key == pygame.K_e and is_distance:
+                    for j in selected_ships:
+                        if distance_target != j:
+                            distance = trigonometry.distance_between_points((pygame.mouse.get_pos()[0] /
+                                                                             scale - cam_x, pygame.mouse.get_pos()[1]
+                                                                             / scale - cam_y),
+                                                                            (distance_target.x, distance_target.y))
+                            j.set_target(distance_target, 'distance', trigonometry.clamp(400, distance,
+                                                                                         9999))
+                        else:
+                            j.set_target(distance_target, 'stop')
+                    break
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if pygame.mouse.get_pressed()[0] and pygame.key.get_pressed()[pygame.K_LCTRL]:
                     is_selecting = True
@@ -225,8 +258,9 @@ def main(level: Level):
 
                 # Кнопки быстрой активации всех модулей одной категории
                 elif event.ui_element == all_high:
-                    for modules in map(lambda ship: (getattr(ship, 'high_modules'), ship) if ship.team == 'player' else None,
-                                       all_ships):
+                    for modules in map(
+                            lambda ship: (getattr(ship, 'high_modules'), ship) if ship.team == 'player' else None,
+                            all_ships):
                         if modules is not None:
                             for module in modules[0]:
                                 if not module.is_passive and not module.active:
@@ -236,8 +270,9 @@ def main(level: Level):
                                     elif module.target_type == 'self':
                                         module.activate(modules[1])
                 elif event.ui_element == all_mid:
-                    for modules in map(lambda ship: (getattr(ship, 'mid_modules'), ship) if ship.team == 'player' else None,
-                                       all_ships):
+                    for modules in map(
+                            lambda ship: (getattr(ship, 'mid_modules'), ship) if ship.team == 'player' else None,
+                            all_ships):
                         if modules is not None:
                             for module in modules[0]:
                                 if not module.is_passive and not module.active:
@@ -247,8 +282,9 @@ def main(level: Level):
                                     elif module.target_type == 'self':
                                         module.activate(modules[1])
                 elif event.ui_element == all_low:
-                    for modules in map(lambda ship: (getattr(ship, 'low_modules'), ship) if ship.team == 'player' else None,
-                                       all_ships):
+                    for modules in map(
+                            lambda ship: (getattr(ship, 'low_modules'), ship) if ship.team == 'player' else None,
+                            all_ships):
                         if modules is not None:
                             for module in modules[0]:
                                 if not module.is_passive and not module.active:
@@ -281,11 +317,9 @@ def main(level: Level):
 
         # Рендеринг
         screen.blit(background, (0, 0))
-        # threads = [Thread(target=r_ship.render, args=(screen, scale, (cam_x, cam_y),)) for r_ship in all_ships]
-        # for t in threads:
-        #     t.start()
-        # for t in threads:
-        #     t.join()
+        if draw_hints:
+            for i in all_ships:
+                i.render_hints(screen, scale, (cam_x, cam_y))
         camera_rect = pygame.Rect((-cam_x - 200, -cam_y - 200, 2520 / scale, 1300 / scale))
         things_for_render = []
         for i in all_ships:
@@ -307,7 +341,8 @@ def main(level: Level):
             pygame.draw.rect(screen, (100, 100, 255), rect, width=1)
             for i in all_ships:
                 if i.team == 'player' and rect.collidepoint(i.x * scale + cam_x * scale, i.y * scale + cam_y * scale):
-                    pygame.draw.circle(screen, (255, 255, 255), (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
+                    pygame.draw.circle(screen, (255, 255, 255),
+                                       (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
                                        (i.diagonal / 2) * scale, 2)
         if temp_selecting is True and is_selecting is False and not is_targeting:
             for i in selected_ships:
@@ -348,7 +383,8 @@ def main(level: Level):
             pygame.draw.rect(screen, (255, 100, 100), rect, width=1)
             for i in all_ships:
                 if i.team == 'enemy' and rect.collidepoint(i.x * scale + cam_x * scale, i.y * scale + cam_y * scale):
-                    pygame.draw.circle(screen, (255, 255, 255), (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
+                    pygame.draw.circle(screen, (255, 255, 255),
+                                       (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
                                        (i.diagonal / 2) * scale, 2)
         if temp_targeting is True and is_targeting is False and not is_selecting:
             rect = pygame.rect.Rect(min(targeting_start[0], targeting_end[0]),

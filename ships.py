@@ -212,11 +212,26 @@ class Ship:
         self.x += self.speed * math.cos(self.speed_dir / 180 * math.pi) * 60 * delta_time
         self.y += self.speed * -math.sin(self.speed_dir / 180 * math.pi) * 60 * delta_time
 
-    def render(self, screen, scale, cam_pos):
+    def render_hints(self, screen, scale, cam_pos):
         # Рендер подсказок
-        pygame.draw.rect(screen, (0, 0, 255, 100),
-                         ((self.dist[0] - 6) * scale + cam_pos[0] * scale,
-                          (self.dist[1] - 6) * scale + cam_pos[1] * scale, 12, 12))
+        if self.dist_type == 'point':
+            pygame.draw.rect(screen, (50, 50, 255),
+                             ((self.dist[0] - 6) * scale + cam_pos[0] * scale,
+                              (self.dist[1] - 6) * scale + cam_pos[1] * scale, 12, 12))
+        elif self.dist_type == 'orbit' or self.dist_type == 'distance':
+            pygame.draw.circle(screen, (50, 50, 255), (self.dist[0] * scale + cam_pos[0] * scale,
+                                                       self.dist[1] * scale + cam_pos[1] * scale),
+                               self.dist_const * scale,
+                               3)
+
+            ang = trigonometry.angle_from_to_point(self.dist, (self.x, self.y))
+            point = (self.dist[0] - self.dist_const * -math.cos(ang / 180 * math.pi), self.dist[1] - self.dist_const *
+                     math.sin(ang / 180 * math.pi))
+            pygame.draw.circle(screen, (50, 50, 255), (point[0] * scale + cam_pos[0] * scale,
+                                                       point[1] * scale + cam_pos[1] * scale),
+                               10)
+
+    def render(self, screen, scale, cam_pos):
 
         # Рендер корабля
         img = pygame.transform.rotozoom(self.img0, self.angle, scale)
