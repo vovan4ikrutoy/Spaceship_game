@@ -1,5 +1,5 @@
 import modules
-from ships import Ship, ShipLevelHolder
+import ships
 
 
 class Level:
@@ -13,12 +13,9 @@ class Level:
 
 def init_levels():
     levels = []
-    for _ in range(12):
-        levels.append(Level(1, 500, [
-            ([ShipLevelHolder(name='enemy ship', weight=20, max_speed=2, max_shield=1500, max_armor=800, max_hull=350,
-                              img='textures/ships/test_enemy.png', pos=(300, 0),
-                              team='enemy', scale=3,
-                              high_modules=[modules.StatisWebfier() for _ in range(3)],
-                              mid_modules=[modules.SmallShieldBooster() for _ in range(4)],
-                              high_module_slots=[(50, 0), (-63, 50), (-63, -50)])], (2000, 0))]))
+    for i in range(12):
+        levels.append(Level(1, 500, [ships.ScoutShip((200, 0), 'player', high_modules=[modules.SmallRailgun, modules.SmallRailgun])
+                                     for _ in range(5)]))
+        levels[-1].enemys.extend([ships.ScoutShip((1500, 0), 'enemy', high_modules=[modules.SmallRailgun, modules.SmallRailgun]) for _ in range(5)])
+        levels[-1].enemys.extend([ships.DestroyerShip((1500, 0), 'enemy', high_modules=[modules.SmallRailgun, modules.SmallRailgun, modules.StatisWebfier]) for _ in range(2)])
     return levels

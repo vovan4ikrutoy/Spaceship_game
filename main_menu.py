@@ -9,6 +9,7 @@ from pygame_gui.core.interfaces import IUIManagerInterface
 
 import main
 import modules
+import ships
 from levels import init_levels
 
 
@@ -44,6 +45,9 @@ manager = pygame_gui.UIManager((width, height), 'data/style.json')
 clock = pygame.time.Clock()
 pygame.display.set_caption('Tutorial 1')
 screen.blit(background, (0, 0))
+
+# Сборки кораблей
+ship_configurations = dict()
 
 # Главное меню
 main_container = pygame_gui.core.UIContainer(pygame.Rect(0, 0, width, height), manager)
@@ -130,7 +134,7 @@ while done is False:
                 main_container.show()
                 screen.blit(background, (0, 0))
             elif type(event.ui_element) == UIButtonWithLevel:
-                main.main(event.ui_element.level)
+                main.main(event.ui_element.level, ship_configurations)
                 done = True
 
     manager.update(time_delta)

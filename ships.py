@@ -1,7 +1,7 @@
 import math
 import random
 import time
-from typing import Tuple, Optional, Dict, Iterable
+from typing import Tuple, Optional, Dict, Iterable, Union
 
 import pygame
 import pygame_gui
@@ -19,8 +19,8 @@ import bullets
 class Ship:
     def __init__(self, name: str, weight: float, max_speed: float, max_shield: float, max_armor: float, max_hull: float,
                  img: str, pos: tuple, manager: pygame_gui.UIManager, cont: pygame_gui.elements.ui_vertical_scroll_bar,
-                 team='player', scale=float(1), high_modules=None, mid_modules=None, low_modules=None,
-                 high_module_slots=None):
+                 bullets_render_list, team='player', scale=1, high_modules=None, mid_modules=None,
+                 low_modules=None, high_module_slots=None):
 
         if high_module_slots is None:
             high_module_slots = []
@@ -52,12 +52,15 @@ class Ship:
         self.img0 = pygame.transform.rotozoom(self.img0, 0, self.scale)
         self.img0.convert()
 
+        self.cached_image = None
         self.cached_scale = 500
         self.cached_angle = 999
-        self.cached_image = None
 
         # Физические данные
-        self.angle = 0
+        if team == 'player':
+            self.angle = 0
+        else:
+            self.angle = 180
         self.x, self.y = pos
         self.rect0 = self.img0.get_rect()
         self.rect0.x, self.rect0.y = pos
@@ -82,7 +85,13 @@ class Ship:
 
         self.tags = []
         self.ui_container = None
+        self.init_modules(bullets_render_list)
         self.init_ui(manager, cont)
+
+    def apply_configuration(self, configuration):
+        self.high_modules = configuration.high_modules
+        self.mid_modules = configuration.mid_modules
+        self.low_modules = configuration.low_modules
 
     def set_target(self, target, dist_type: str, dist_const=0):
         if type(target) == tuple:
@@ -117,9 +126,22 @@ class Ship:
                 i.speed *= 0.2
 
     def think(self, delta_time):
-        for i in self.high_modules:
-            i.think(delta_time)
+        for i in range(len(self.high_module_slots)):
+            self.high_modules[i].think(delta_time)
+            center = trigonometry.rotate((0, 0),
+                                         (self.high_module_slots[i][0], self.high_module_slots[i][1]),
+                                         -math.radians(self.angle))
+            if self.high_modules[i].target is not None:
+                angle = trigonometry.angle_from_to_point((math.floor(self.x) + center[0],
+                                                          math.floor(self.y) + center[1]),
+                                                         (self.high_modules[i].target.x,
+                                                          self.high_modules[i].target.y))
+            else:
+                angle = self.angle
+            self.high_modules[i].update_info((math.floor(self.x) + center[0], math.floor(self.y) + center[1]), angle)
         for i in self.mid_modules:
+            i.think(delta_time)
+        for i in self.low_modules:
             i.think(delta_time)
 
         if self.target is not None:
@@ -275,6 +297,13 @@ class Ship:
                                (math.floor(self.y) + cam_pos[1] + center[1]) * scale)
                 screen.blit(img, rect)
 
+    def init_modules(self, bullets_render_list):
+        for i in range(len(self.high_modules)):
+            if self.high_modules[i].__bases__[0] == modules.Turret:
+                self.high_modules[i] = self.high_modules[i](bullets_render_list, self.team)
+            else:
+                self.high_modules[i] = self.high_modules[i]()
+
     def init_ui(self, manager, cont):
         if self.team == 'player':
             self.ui_container = pygame_gui.core.UIContainer(relative_rect=pygame.Rect((0, 0), (410, 100)),
@@ -385,7 +414,7 @@ class UIButtonWithShip(pygame_gui.elements.UIButton):
 
 class ShipLevelHolder:
     def __init__(self, name: str, weight: float, max_speed: float, max_shield: float, max_armor: float, max_hull: float,
-                 img: str, pos: tuple, team='player', scale=float(1), high_modules=None, mid_modules=None,
+                 img: str, pos: tuple, team='player', scale=1, high_modules=None, mid_modules=None,
                  low_modules=None, high_module_slots=None):
         self.name = name
         self.weight = weight
@@ -401,3 +430,46 @@ class ShipLevelHolder:
         self.mid_modules = mid_modules
         self.low_modules = low_modules
         self.high_module_slots = high_module_slots
+
+    def to_ship(self, manager: pygame_gui.UIManager, cont: pygame_gui.elements.ui_vertical_scroll_bar,
+                bullet_render_list):
+        return Ship(self.name, self.weight, self.max_speed, self.max_shield, self.max_armor, self.max_hull, self.img,
+                    self.pos, manager, cont, bullet_render_list, team=self.team, scale=self.scale,
+                    high_modules=self.high_modules, mid_modules=self.mid_modules, low_modules=self.low_modules,
+                    high_module_slots=self.high_module_slots)
+
+
+class Configuration:
+    def __init__(self, for_ship: ShipLevelHolder, high_modules=None, mid_modules=None, low_modules=None):
+        self.high_modules = high_modules
+        self.mid_modules = mid_modules
+        self.low_modules = low_modules
+        if high_modules is None:
+            high_modules = []
+        if mid_modules is None:
+            mid_modules = []
+        if low_modules is None:
+            low_modules = []
+
+
+# Пресеты различный кораблей
+class ScoutShip(ShipLevelHolder):
+    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None):
+        if team == 'player':
+            img = 'textures/ships/Scout_player.png'
+        else:
+            img = 'textures/ships/Scout_enemy.png'
+        super().__init__('Scout', 5, 6.5, 200, 50, 100,
+                         img, pos, team, 2, high_modules, mid_modules,
+                         low_modules, [(-25, -42), (-25, 42)])
+
+
+class DestroyerShip(ShipLevelHolder):
+    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None):
+        if team == 'player':
+            img = 'textures/ships/Destroyer_player.png'
+        else:
+            img = 'textures/ships/Destroyer_enemy.png'
+        super().__init__('Destroyer', 20, 3, 700, 200, 200,
+                         img, pos, team, 3, high_modules, mid_modules,
+                         low_modules, [(45, 0), (-63, 25), (-63, -25)])

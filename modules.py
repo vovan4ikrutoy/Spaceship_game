@@ -60,7 +60,7 @@ class Turret(Module):
 
 
 class StatisWebfier(Turret):
-    def __init__(self):
+    def __init__(self, bullets_render: list, team: str):
         super().__init__('small railgun', 'small_railgun', 1,
                          'textures/turrets/basic_base.png', 'textures/turrets/gun.png')
 
@@ -69,8 +69,8 @@ class StatisWebfier(Turret):
 
 
 class SmallRailgun(Turret):
-    def __init__(self, bullets_render: list, team: str, cooldown=1.0):
-        super().__init__('small railgun', 'small_railgun', cooldown,
+    def __init__(self, bullets_render: list, team: str):
+        super().__init__('small railgun', 'small_railgun', 1,
                          'textures/turrets/basic_base.png', 'textures/turrets/gun.png',
                          bullets_render, team)
 
@@ -79,8 +79,8 @@ class SmallRailgun(Turret):
 
         
 class SmallShieldBooster(Module):
-    def __init__(self, cooldown=1.0):
-        super().__init__('heal', 'mid', 'small_shield_booster', 'self', cooldown)
+    def __init__(self):
+        super().__init__('heal', 'mid', 'small_shield_booster', 'self', 1)
 
     def use(self, target):
         target.shield += 200

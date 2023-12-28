@@ -1,14 +1,16 @@
-# noinspection SpellCheckingInspection
+from ships import Configuration
 from levels import Level
 
 
-def main(level: Level):
+# noinspection SpellCheckingInspection
+
+
+def main(level: Level, ship_configurations: dict):
     import pygame
     import json
 
     from pygame_gui.core import ObjectID
 
-    import modules
     import trigonometry
     import ships
     import pygame_gui
@@ -50,7 +52,8 @@ def main(level: Level):
     screen = pygame.display.set_mode((width, height))
     manager = pygame_gui.UIManager((width, height), 'data/style.json')
     manager.get_theme().load_theme('data/buttons.json')
-    background = pygame.image.load('textures/UI/bg.jpg')
+    bg_img = pygame.image.load('textures/UI/bg.jpg')
+    background = pygame.transform.scale(bg_img, (width, height))
     fps_counter = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((0, 0), (20, 20)), manager=manager, text='60')
     clock = pygame.time.Clock()
     done = False
@@ -74,23 +77,10 @@ def main(level: Level):
     # Список модулей на рендер
     buttons_for_render = []
 
-    all_ships = \
-        [ships.Ship(name='player ship', weight=5, max_speed=5, max_shield=700, max_armor=300, max_hull=200,
-                    img='textures/ships/test_ship.png', pos=(0, 0), manager=manager, cont=ui_scroll, team='player',
-                    scale=2,
-                    high_modules=[modules.SmallRailgun(bullets, 'player') for _ in range(2)],
-                    mid_modules=[modules.SmallShieldBooster() for _ in range(4)],
-                    low_modules=[modules.SmallShieldReinforcement() for _ in range(9)],
-                    high_module_slots=[(-25, -42), (-25, 42)])
-         for _ in range(11)]
-    for _ in range(1):
-        all_ships.append(
-            ships.Ship(name='enemy ship', weight=20, max_speed=2, max_shield=1500, max_armor=800, max_hull=350,
-                       img='textures/ships/test_enemy.png', pos=(300, 0), manager=manager, cont=ui_scroll,
-                       team='enemy', scale=3,
-                       high_modules=[modules.StatisWebfier() for _ in range(3)],
-                       mid_modules=[modules.SmallShieldBooster() for _ in range(4)],
-                       high_module_slots=[(50, 0), (-63, 50), (-63, -50)]))
+    all_ships = []
+    for i in level.enemys:
+        all_ships.append(i.to_ship(manager, ui_scroll, bullets))
+
     # Игра
     game_speed = 1
 
@@ -203,7 +193,9 @@ def main(level: Level):
                             distance = trigonometry.distance_between_points((pygame.mouse.get_pos()[0] /
                                                                              scale - cam_x, pygame.mouse.get_pos()[1]
                                                                              / scale - cam_y),
-                                                                            (orbit_target.x, orbit_target.y) if type(orbit_target) != tuple else (orbit_target[0], orbit_target[1]))
+                                                                            (orbit_target.x, orbit_target.y) if type(
+                                                                                orbit_target) != tuple else (
+                                                                            orbit_target[0], orbit_target[1]))
                             j.set_target(orbit_target, 'orbit', trigonometry.clamp(400, distance,
                                                                                    9999))
                         else:
@@ -215,7 +207,10 @@ def main(level: Level):
                             distance = trigonometry.distance_between_points((pygame.mouse.get_pos()[0] /
                                                                              scale - cam_x, pygame.mouse.get_pos()[1]
                                                                              / scale - cam_y),
-                                                                            (distance_target.x, distance_target.y) if type(distance_target) != tuple else (distance_target[0], distance_target[1]))
+                                                                            (distance_target.x,
+                                                                             distance_target.y) if type(
+                                                                                distance_target) != tuple else (
+                                                                            distance_target[0], distance_target[1]))
                             j.set_target(distance_target, 'distance', trigonometry.clamp(400, distance,
                                                                                          9999))
                         else:
@@ -419,7 +414,7 @@ def main(level: Level):
             now_targeting[i] -= time_delta
             if now_targeting[i] < 0:
                 targets.append(ships.UIButtonWithShip(relative_rect=pygame.Rect(1300 - len(targets) * 120, 0, 100, 100),
-                                                      text=i.name,  manager=manager, ship=i))
+                                                      text=i.name, manager=manager, ship=i))
                 ans.append(i)
         for i in ans:
             del now_targeting[i]
@@ -436,9 +431,10 @@ def main(level: Level):
                         color = (0, 255 * progress, 0)
                     else:
                         color = (255 * progress, 0, 0)
+
                     pygame.draw.circle(screen, color,
                                        (module[1][0] + 20 + module[2] / 2,
-                                        module[1][1] + module[2] / 2 - ui_scroll.vert_scroll_bar.scroll_position * 1.36
-                                        if ui_scroll.vert_scroll_bar else 0),
+                                        module[1][1] + module[2] / 2 - (ui_scroll.vert_scroll_bar.scroll_position * 1.36
+                                        if ui_scroll.vert_scroll_bar else 0)),
                                        module[2] / 2, width=2)
         pygame.display.flip()
