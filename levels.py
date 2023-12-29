@@ -15,7 +15,15 @@ def init_levels():
     levels = []
     for i in range(12):
         levels.append(Level(1, 500, [ships.ScoutShip((200, 0), 'player', high_modules=[modules.SmallRailgun, modules.SmallRailgun])
-                                     for _ in range(5)]))
-        levels[-1].enemys.extend([ships.ScoutShip((1500, 0), 'enemy', high_modules=[modules.SmallRailgun, modules.SmallRailgun]) for _ in range(5)])
-        levels[-1].enemys.extend([ships.DestroyerShip((1500, 0), 'enemy', high_modules=[modules.SmallRailgun, modules.SmallRailgun, modules.StatisWebfier]) for _ in range(2)])
+                                     for _ in range(15)]))
+        levels[-1].enemys.extend([ships.DestroyerShip((0, 0), 'player')])
+        levels[-1].enemys.extend([ships.ScoutShip((1500, 0), 'enemy',
+                                                  high_modules=[modules.SmallRailgun,
+                                                                modules.SmallRailgun])
+                                  for _ in range(5)])
+        levels[-1].enemys.extend([ships.DestroyerShip((1500, 0), 'enemy',
+                                                      high_modules=[modules.SmallRailgun,
+                                                                    modules.SmallRailgun,
+                                                                    modules.StatisWebfier])
+                                  for _ in range(2)])
     return levels

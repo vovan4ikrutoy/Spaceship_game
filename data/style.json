@@ -60,5 +60,14 @@
            "shape": "rectangle"
          }
      },
+     "#Start_but": {
+       "font": {
+         "size": "70"
+       },
+       "misc":
+         {
+           "shape": "rectangle"
+         }
+     },
      "@boba": {}
  }

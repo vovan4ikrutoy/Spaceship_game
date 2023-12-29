@@ -53,6 +53,7 @@ class Ship:
         self.img0.convert()
 
         self.cached_image = None
+        self.cached_scaled = None
         self.cached_scale = 500
         self.cached_angle = 999
 
@@ -88,11 +89,6 @@ class Ship:
         self.init_modules(bullets_render_list)
         self.init_ui(manager, cont)
 
-    def apply_configuration(self, configuration):
-        self.high_modules = configuration.high_modules
-        self.mid_modules = configuration.mid_modules
-        self.low_modules = configuration.low_modules
-
     def set_target(self, target, dist_type: str, dist_const=0):
         if type(target) == tuple:
             self.dist = target
@@ -127,18 +123,20 @@ class Ship:
 
     def think(self, delta_time):
         for i in range(len(self.high_module_slots)):
-            self.high_modules[i].think(delta_time)
-            center = trigonometry.rotate((0, 0),
-                                         (self.high_module_slots[i][0], self.high_module_slots[i][1]),
-                                         -math.radians(self.angle))
-            if self.high_modules[i].target is not None:
-                angle = trigonometry.angle_from_to_point((math.floor(self.x) + center[0],
-                                                          math.floor(self.y) + center[1]),
-                                                         (self.high_modules[i].target.x,
-                                                          self.high_modules[i].target.y))
-            else:
-                angle = self.angle
-            self.high_modules[i].update_info((math.floor(self.x) + center[0], math.floor(self.y) + center[1]), angle)
+            if i < len(self.high_modules):
+                self.high_modules[i].think(delta_time)
+                center = trigonometry.rotate((0, 0),
+                                             (self.high_module_slots[i][0], self.high_module_slots[i][1]),
+                                             -math.radians(self.angle))
+                if self.high_modules[i].target is not None:
+                    angle = trigonometry.angle_from_to_point((math.floor(self.x) + center[0],
+                                                              math.floor(self.y) + center[1]),
+                                                             (self.high_modules[i].target.x,
+                                                              self.high_modules[i].target.y))
+                else:
+                    angle = self.angle
+                self.high_modules[i].update_info((math.floor(self.x) + center[0], math.floor(self.y) + center[1]),
+                                                 angle)
         for i in self.mid_modules:
             i.think(delta_time)
         for i in self.low_modules:
@@ -261,26 +259,29 @@ class Ship:
 
     def render(self, screen, scale, cam_pos):
         # Рендер корабля
-        if abs(self.angle - self.cached_angle) > 5 or abs(scale - self.cached_scale) > 0.04:
-            self.cached_image = pygame.transform.rotozoom(self.img0, self.angle, scale)
-            self.cached_angle = self.angle
+        if abs(scale - self.cached_scale) > 0.04:
+            self.cached_scaled = pygame.transform.rotozoom(self.img0, 0, scale)
+            self.cached_image = pygame.transform.rotate(self.cached_scaled, self.angle)
             self.cached_scale = scale
+        if abs(self.angle - self.cached_angle) > 5:
+            self.cached_image = pygame.transform.rotate(self.cached_scaled, self.angle)
+            self.cached_angle = self.angle
         rect = self.cached_image.get_rect()
         rect.center = math.floor(self.x) * scale + cam_pos[0] * scale, math.floor(self.y) * scale + cam_pos[1] * scale
         screen.blit(self.cached_image, rect)
 
         # Рендер пушек
         for i in range(len(self.high_modules)):
-            if hasattr(self.high_modules[i], 'base_img'):
+            if type(self.high_modules[i]).__bases__[0] == modules.Turret:
+                base_img, gun_img = self.high_modules[i].render(self.angle, scale)
                 center = trigonometry.rotate((0, 0),
                                              (self.high_module_slots[i][0], self.high_module_slots[i][1]),
                                              -math.radians(self.angle))
 
-                img = pygame.transform.rotozoom(self.high_modules[i].base_img, self.angle, scale * 1.5)
-                rect = img.get_rect()
+                rect = base_img.get_rect()
                 rect.center = ((math.floor(self.x) + cam_pos[0] + center[0]) * scale,
                                (math.floor(self.y) + cam_pos[1] + center[1]) * scale)
-                screen.blit(img, rect)
+                screen.blit(base_img, rect)
 
                 if self.high_modules[i].target is not None:
                     angle = trigonometry.angle_from_to_point((math.floor(self.x) + center[0],
@@ -291,11 +292,10 @@ class Ship:
                     angle = self.angle
                 self.high_modules[i].update_info((math.floor(self.x) + center[0], math.floor(self.y) + center[1]),
                                                  angle)
-                img = pygame.transform.rotozoom(self.high_modules[i].gun_img, angle, scale * 1.5)
-                rect = img.get_rect()
+                rect = gun_img.get_rect()
                 rect.center = ((math.floor(self.x) + cam_pos[0] + center[0]) * scale,
                                (math.floor(self.y) + cam_pos[1] + center[1]) * scale)
-                screen.blit(img, rect)
+                screen.blit(gun_img, rect)
 
     def init_modules(self, bullets_render_list):
         for i in range(len(self.high_modules)):
@@ -363,6 +363,21 @@ class Ship:
         self.ui_container.hide()
 
 
+class Configuration:
+    def __init__(self, name, for_ship, high_modules=None, mid_modules=None, low_modules=None):
+        self.name = name
+        self.for_ship = for_ship
+        self.high_modules = high_modules
+        self.mid_modules = mid_modules
+        self.low_modules = low_modules
+        if high_modules is None:
+            high_modules = []
+        if mid_modules is None:
+            mid_modules = []
+        if low_modules is None:
+            low_modules = []
+
+
 class UIButtonWithModule(pygame_gui.elements.UIButton):
     def __init__(self, relative_rect: pygame.Rect | Tuple[float, float] | pygame.Vector2,
                  text: str,
@@ -411,6 +426,29 @@ class UIButtonWithShip(pygame_gui.elements.UIButton):
                          tool_tip_text_kwargs=tool_tip_text_kwargs)
         self.ship = ship
 
+class UIButtonWithConfiguration(pygame_gui.elements.UIButton):
+    def __init__(self, relative_rect: pygame.Rect | Tuple[float, float] | pygame.Vector2,
+                 text: str,
+                 manager: Optional[IUIManagerInterface] = None,
+                 container: Optional[IContainerLikeInterface] = None,
+                 tool_tip_text: str | None = None,
+                 starting_height: int = 1,
+                 parent_element: UIElement = None,
+                 object_id: ObjectID | str | None = None,
+                 anchors: str | UIElement = None,
+                 allow_double_clicks: bool = False,
+                 generate_click_events_from: Iterable[int] = frozenset([pygame.BUTTON_LEFT]),
+                 visible: int = 1,
+                 *,
+                 tool_tip_object_id: Optional[ObjectID] = None,
+                 text_kwargs: Optional[Dict[str, str]] = None,
+                 tool_tip_text_kwargs: Optional[Dict[str, str]] = None, configuration: Configuration = None):
+        super().__init__(relative_rect, text, manager, container, tool_tip_text, starting_height, parent_element,
+                         object_id, anchors, allow_double_clicks, generate_click_events_from, visible,
+                         tool_tip_object_id=tool_tip_object_id, text_kwargs=text_kwargs,
+                         tool_tip_text_kwargs=tool_tip_text_kwargs)
+        self.configuration = configuration
+
 
 class ShipLevelHolder:
     def __init__(self, name: str, weight: float, max_speed: float, max_shield: float, max_armor: float, max_hull: float,
@@ -431,25 +469,17 @@ class ShipLevelHolder:
         self.low_modules = low_modules
         self.high_module_slots = high_module_slots
 
+    def apply_configuration(self, configuration):
+        self.high_modules = configuration.high_modules
+        self.mid_modules = configuration.mid_modules
+        self.low_modules = configuration.low_modules
+
     def to_ship(self, manager: pygame_gui.UIManager, cont: pygame_gui.elements.ui_vertical_scroll_bar,
                 bullet_render_list):
         return Ship(self.name, self.weight, self.max_speed, self.max_shield, self.max_armor, self.max_hull, self.img,
                     self.pos, manager, cont, bullet_render_list, team=self.team, scale=self.scale,
                     high_modules=self.high_modules, mid_modules=self.mid_modules, low_modules=self.low_modules,
                     high_module_slots=self.high_module_slots)
-
-
-class Configuration:
-    def __init__(self, for_ship: ShipLevelHolder, high_modules=None, mid_modules=None, low_modules=None):
-        self.high_modules = high_modules
-        self.mid_modules = mid_modules
-        self.low_modules = low_modules
-        if high_modules is None:
-            high_modules = []
-        if mid_modules is None:
-            mid_modules = []
-        if low_modules is None:
-            low_modules = []
 
 
 # Пресеты различный кораблей

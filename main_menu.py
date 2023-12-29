@@ -48,6 +48,10 @@ screen.blit(background, (0, 0))
 
 # Сборки кораблей
 ship_configurations = dict()
+Scout = ships.ScoutShip((0, 0))
+ship_configurations[Scout] = [ships.Configuration('Test Configuration', Scout), ships.Configuration('Test Configuration2', Scout)]
+Destroyer = ships.DestroyerShip((0, 0))
+ship_configurations[Destroyer] = [ships.Configuration('Test Configuration', Destroyer), ships.Configuration('Test Configuration2', Destroyer)]
 
 # Главное меню
 main_container = pygame_gui.core.UIContainer(pygame.Rect(0, 0, width, height), manager)

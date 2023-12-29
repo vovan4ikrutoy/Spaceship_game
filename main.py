@@ -72,6 +72,28 @@ def main(level: Level, ship_configurations: dict):
                                            manager=manager, container=all_buttons_container,
                                            object_id=ObjectID(class_id='@friendly_buttons', object_id='#all_button'))
 
+    ui_scroll_ships = pygame_gui.elements.UIScrollingContainer(pygame.Rect(0, 0, 500, height), manager)
+    ui_scroll_ships.set_scrollable_area_dimensions((500, 1000))
+
+    counter = 0
+    for i in ship_configurations.keys():
+        print(counter)
+        ships.UIButtonWithConfiguration(pygame.Rect((0,  counter * 200, 300, 200)), '', manager,
+                                        container=ui_scroll_ships, object_id=ObjectID(class_id='@friendly_buttons',
+                                                                                      object_id='#Start_but'))
+        img = pygame.image.load(i.img)
+        cof = 160 / img.get_height()
+        pygame_gui.elements.UIImage(pygame.Rect((150 - img.get_width() * cof / 2,
+                                                 100 - img.get_height() * cof / 2 + counter * 200,
+                                                 img.get_width() * cof, img.get_height() * cof)), img, manager,
+                                    container=ui_scroll_ships)
+        counter += 1
+
+    start_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((width - 300, height - 180, 300, 180)),
+                                                text='Start', manager=manager,
+                                                object_id=ObjectID(class_id='@friendly_buttons',
+                                                                   object_id='#Start_but'))
+
     # Важно! Список пуль для обработки, он общий для всех кораблей и их модулей
     bullets = []
     # Список модулей на рендер
@@ -83,12 +105,13 @@ def main(level: Level, ship_configurations: dict):
 
     # Игра
     game_speed = 1
+    started = False
 
     # Камера
     scale = 1
     cam_x, cam_y = 0, 0
     scroll_sense = 0.05
-    min_zoom, max_zoom = 0.1, 1
+    min_zoom, max_zoom = 0.1, 0.85
     ships_ui_offset = 70
     draw_hints = True
 
@@ -124,7 +147,7 @@ def main(level: Level, ship_configurations: dict):
             manager.process_events(event)
             if event.type == pygame.QUIT:
                 done = True
-            elif event.type == pygame.KEYDOWN:
+            elif event.type == pygame.KEYDOWN and started:
                 if event.key == pygame.K_r:
                     if len(selected_ships) != 0:
                         x, y = pygame.mouse.get_pos()[0] - cam_x * scale, pygame.mouse.get_pos()[1] - cam_y * scale
@@ -195,7 +218,7 @@ def main(level: Level, ship_configurations: dict):
                                                                              / scale - cam_y),
                                                                             (orbit_target.x, orbit_target.y) if type(
                                                                                 orbit_target) != tuple else (
-                                                                            orbit_target[0], orbit_target[1]))
+                                                                                orbit_target[0], orbit_target[1]))
                             j.set_target(orbit_target, 'orbit', trigonometry.clamp(400, distance,
                                                                                    9999))
                         else:
@@ -210,7 +233,7 @@ def main(level: Level, ship_configurations: dict):
                                                                             (distance_target.x,
                                                                              distance_target.y) if type(
                                                                                 distance_target) != tuple else (
-                                                                            distance_target[0], distance_target[1]))
+                                                                                distance_target[0], distance_target[1]))
                             j.set_target(distance_target, 'distance', trigonometry.clamp(400, distance,
                                                                                          9999))
                         else:
@@ -242,6 +265,10 @@ def main(level: Level, ship_configurations: dict):
                         scale -= scroll_sense
                         scale = trigonometry.clamp(min_zoom, scale, max_zoom)
             elif event.type == pygame_gui.UI_BUTTON_PRESSED:
+                if event.ui_element == start_button:
+                    start_button.hide()
+                    ui_scroll_ships.hide()
+                    started = True
                 if type(event.ui_element) == ships.UIButtonWithModule:
                     if not event.ui_element.module.is_passive:
                         if event.ui_element.module.target_type == 'enemy':
@@ -254,36 +281,54 @@ def main(level: Level, ship_configurations: dict):
 
                 # Кнопки быстрой активации всех модулей одной категории
                 elif event.ui_element == all_high:
+                    for i in all_ships:
+                        if i.team == 'player':
+                            activness = i.high_modules[0].active
+                            break
+                    else:
+                        activness = False
                     for modules in map(
                             lambda ship: (getattr(ship, 'high_modules'), ship) if ship.team == 'player' else None,
                             all_ships):
                         if modules is not None:
                             for module in modules[0]:
-                                if not module.is_passive and not module.active:
+                                if not module.is_passive and module.active == activness:
                                     if module.target_type == 'enemy':
                                         if active_target is not None:
                                             module.activate(active_target.ship)
                                     elif module.target_type == 'self':
                                         module.activate(modules[1])
                 elif event.ui_element == all_mid:
+                    for i in all_ships:
+                        if i.team == 'player':
+                            activness = i.mid_modules[0].active
+                            break
+                    else:
+                        activness = False
                     for modules in map(
                             lambda ship: (getattr(ship, 'mid_modules'), ship) if ship.team == 'player' else None,
                             all_ships):
                         if modules is not None:
                             for module in modules[0]:
-                                if not module.is_passive and not module.active:
+                                if not module.is_passive and module.active == activness:
                                     if module.target_type == 'enemy':
                                         if active_target is not None:
                                             module.activate(active_target.ship)
                                     elif module.target_type == 'self':
                                         module.activate(modules[1])
                 elif event.ui_element == all_low:
+                    for i in all_ships:
+                        if i.team == 'player':
+                            activness = i.low_modules[0].active
+                            break
+                    else:
+                        activness = False
                     for modules in map(
                             lambda ship: (getattr(ship, 'low_modules'), ship) if ship.team == 'player' else None,
                             all_ships):
                         if modules is not None:
                             for module in modules[0]:
-                                if not module.is_passive and not module.active:
+                                if not module.is_passive and module.active == activness:
                                     if module.target_type == 'enemy':
                                         if active_target is not None:
                                             module.activate(active_target.ship)
@@ -328,7 +373,7 @@ def main(level: Level, ship_configurations: dict):
             r_ship.render(screen, scale, (cam_x, cam_y))
 
         # Обработка выбора кораблей через ctrl
-        if is_selecting and not is_targeting:
+        if is_selecting and not is_targeting and started:
             selecting_end = pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1]
             rect = pygame.rect.Rect(min(selecting_start[0], selecting_end[0]),
                                     min(selecting_start[1], selecting_end[1]),
@@ -340,7 +385,7 @@ def main(level: Level, ship_configurations: dict):
                     pygame.draw.circle(screen, (255, 255, 255),
                                        (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
                                        (i.diagonal / 2) * scale, 2)
-        if temp_selecting is True and is_selecting is False and not is_targeting:
+        if temp_selecting is True and is_selecting is False and not is_targeting and started:
             for i in selected_ships:
                 i.hide_ui()
             rect = pygame.rect.Rect(min(selecting_start[0], selecting_end[0]),
@@ -370,7 +415,7 @@ def main(level: Level, ship_configurations: dict):
                                                                               9999)))
 
         # Обработка выбора целей через shift
-        if is_targeting and not is_selecting:
+        if is_targeting and not is_selecting and started:
             targeting_end = pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1]
             rect = pygame.rect.Rect(min(targeting_start[0], targeting_end[0]),
                                     min(targeting_start[1], targeting_end[1]),
@@ -382,7 +427,7 @@ def main(level: Level, ship_configurations: dict):
                     pygame.draw.circle(screen, (255, 255, 255),
                                        (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
                                        (i.diagonal / 2) * scale, 2)
-        if temp_targeting is True and is_targeting is False and not is_selecting:
+        if temp_targeting is True and is_targeting is False and not is_selecting and started:
             rect = pygame.rect.Rect(min(targeting_start[0], targeting_end[0]),
                                     min(targeting_start[1], targeting_end[1]),
                                     abs(targeting_start[0] - targeting_end[0]),
@@ -435,6 +480,6 @@ def main(level: Level, ship_configurations: dict):
                     pygame.draw.circle(screen, color,
                                        (module[1][0] + 20 + module[2] / 2,
                                         module[1][1] + module[2] / 2 - (ui_scroll.vert_scroll_bar.scroll_position * 1.36
-                                        if ui_scroll.vert_scroll_bar else 0)),
+                                                                        if ui_scroll.vert_scroll_bar else 0)),
                                        module[2] / 2, width=2)
         pygame.display.flip()

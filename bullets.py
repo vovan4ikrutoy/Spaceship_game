@@ -1,3 +1,4 @@
+import pygame.transform
 from pygame import image, transform
 import math
 
@@ -16,6 +17,9 @@ class Bullet:
         self.team = team
         self.dead = False
 
+        self.cached_image = None
+        self.cached_scale = 0
+
     def think(self, delta_time, all_ships):
         self.x += math.cos(math.radians(self.angle)) * self.speed * (delta_time / 0.01666)
         self.y -= math.sin(math.radians(self.angle)) * self.speed * (delta_time / 0.01666)
@@ -26,7 +30,9 @@ class Bullet:
                 self.dead = True
 
     def render(self, screen, scale, cam_pos):
-        img = transform.rotozoom(self.img0, self.angle, scale)
+        if abs(self.cached_scale - scale) > 0.04:
+            self.cached_image = pygame.transform.rotozoom(self.img0, self.angle, scale)
+        img = self.cached_image
         rect = img.get_rect()
         rect.center = math.floor(self.x) * scale + cam_pos[0] * scale, math.floor(self.y) * scale + cam_pos[1] * scale
         screen.blit(img, rect)
