@@ -2,6 +2,7 @@ import pygame
 import random
 
 import bullets
+from texture_manager import load_texture
 
 
 class Module:
@@ -9,7 +10,7 @@ class Module:
         self.name = name
         self.slot_type = slot_type
         self.img0 = img
-        self.img1 = pygame.image.load('textures/modules/' + img + '.png')
+        self.img1 = load_texture('textures/modules/' + img + '.png')
         self.target_type = target_type
         self.target = None
         if cooldown < 0:
@@ -45,8 +46,8 @@ class Module:
 class Turret(Module):
     def __init__(self, name: str, img, cooldown: float, base_img, gun_img, bullets_render=None, team='player', base_scale=float(1), gun_scale=float(1)):
         super().__init__(name, 'high', img, 'enemy', cooldown)
-        self.base_img = pygame.transform.rotozoom(pygame.image.load(base_img), 0, base_scale)
-        self.gun_img = pygame.transform.rotozoom(pygame.image.load(gun_img), 0, gun_scale)
+        self.base_img = pygame.transform.rotozoom(load_texture(base_img), 0, base_scale)
+        self.gun_img = pygame.transform.rotozoom(load_texture(gun_img), 0, gun_scale)
         self.target = None
         self.bullets = bullets_render
         self.team = team

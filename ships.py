@@ -1,7 +1,6 @@
 import math
 import random
-import time
-from typing import Tuple, Optional, Dict, Iterable, Union
+from typing import Tuple, Optional, Dict, Iterable
 
 import pygame
 import pygame_gui
@@ -10,7 +9,7 @@ from pygame_gui.core.interfaces import IUIManagerInterface
 
 import trigonometry
 import modules
-import bullets
+from texture_manager import load_texture
 
 
 # noinspection SpellCheckingInspection
@@ -48,7 +47,7 @@ class Ship:
 
         # Визуальные данные
         self.scale = scale
-        self.img0 = pygame.image.load(img)
+        self.img0 = load_texture(img)
         self.img0 = pygame.transform.rotozoom(self.img0, 0, self.scale)
         self.img0.convert()
 
@@ -255,7 +254,7 @@ class Ship:
                                                        point[1] * scale + cam_pos[1] * scale),
                                10)
             pygame.draw.circle(screen, (50, 50, 255), (self.dist[0] * scale + cam_pos[0] * scale,
-                               self.dist[1] * scale + cam_pos[1] * scale), 10)
+                                                       self.dist[1] * scale + cam_pos[1] * scale), 10)
 
     def render(self, screen, scale, cam_pos):
         # Рендер корабля
@@ -303,6 +302,10 @@ class Ship:
                 self.high_modules[i] = self.high_modules[i](bullets_render_list, self.team)
             else:
                 self.high_modules[i] = self.high_modules[i]()
+        for i in range(len(self.mid_modules)):
+            self.mid_modules[i] = self.mid_modules[i]()
+        for i in range(len(self.low_modules)):
+            self.low_modules[i] = self.low_modules[i]()
 
     def init_ui(self, manager, cont):
         if self.team == 'player':
@@ -425,6 +428,7 @@ class UIButtonWithShip(pygame_gui.elements.UIButton):
                          tool_tip_object_id=tool_tip_object_id, text_kwargs=text_kwargs,
                          tool_tip_text_kwargs=tool_tip_text_kwargs)
         self.ship = ship
+
 
 class UIButtonWithConfiguration(pygame_gui.elements.UIButton):
     def __init__(self, relative_rect: pygame.Rect | Tuple[float, float] | pygame.Vector2,

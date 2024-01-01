@@ -1,8 +1,8 @@
 import pygame.transform
-from pygame import image, transform
 import math
 
 import trigonometry
+from texture_manager import load_texture
 
 
 class Bullet:
@@ -13,7 +13,7 @@ class Bullet:
         self.radius = radius
         self.speed = speed
         self.damage = damage
-        self.img0 = image.load(img)
+        self.img0 = load_texture(img)
         self.team = team
         self.dead = False
 
@@ -27,7 +27,7 @@ class Bullet:
             if (ship.team != self.team
                     and (trigonometry.distance_between_points((self.x, self.y), (ship.x, ship.y))
                          <= ship.diagonal / 2 + self.radius)):
-                self.dead = True
+                self.impact(ship, all_ships)
 
     def render(self, screen, scale, cam_pos):
         if abs(self.cached_scale - scale) > 0.04:
@@ -36,6 +36,10 @@ class Bullet:
         rect = img.get_rect()
         rect.center = math.floor(self.x) * scale + cam_pos[0] * scale, math.floor(self.y) * scale + cam_pos[1] * scale
         screen.blit(img, rect)
+
+    def impact(self, ship, all_ships):
+        self.dead = True
+
 
 
 class SmallRailgunBullet(Bullet):

@@ -39,16 +39,19 @@
          }
      },
      "#Title_sub": {
-       "font": {
-         "size": "30"
-       },
        "colours": {
          "dark_bg": "#00000000"
        },
        "misc": {
          "border_width": "0",
          "shadow_width": "0",
-         "line_spacing": "1.0"
+         "line_spacing": "1.0",
+         "text_horiz_alignment": "center"
+       }
+     },
+     "#Settings": {
+       "font": {
+         "size": "34"
        }
      },
      "#Title_button": {
@@ -57,7 +60,8 @@
        },
        "misc":
          {
-           "shape": "rectangle"
+           "shape": "rectangle",
+           "text_horiz_alignment": "center"
          }
      },
      "#Start_but": {
