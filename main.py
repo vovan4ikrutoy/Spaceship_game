@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Optional, Dict, Iterable, Tuple
 
 import pygame
@@ -8,7 +9,6 @@ from pygame_gui.core import ObjectID, UIElement, IContainerLikeInterface
 from pygame_gui.core.interfaces import IUIManagerInterface
 
 import game
-import modules
 import ships
 from levels import init_levels
 
@@ -37,9 +37,30 @@ class UIButtonWithLevel(pygame_gui.elements.UIButton):
         self.level = level
 
 
+class SaveReadError(Exception):
+    pass
+
+
 os.environ['SDL_VIDEO_CENTERED'] = '1'
+save = Path('saves/save.txt')
+if save.exists():
+    with open('saves/' + save.name, 'r') as file:
+        data = file.readlines()
+        try:
+            if data[0] == 'fullscreen':
+                resolution = (0, 0)
+            else:
+                resolution = tuple(map(int, data[0].split('x')))
+        except:
+            SaveReadError("Ошибка чтения сохранения")
+        file.close()
+else:
+    resolution = (0, 0)
+    with open('saves/' + save.name, 'w') as file:
+        file.write('fullscreen')
+        file.close()
 pygame.init()
-screen = pygame.display.set_mode((0, 0), pygame.NOFRAME)
+screen = pygame.display.set_mode(resolution, pygame.NOFRAME)
 width, height = screen.get_size()
 background = pygame.transform.scale(pygame.image.load('textures/UI/main_bg.jpg'), (width, height))
 manager = pygame_gui.UIManager((width, height), 'data/style.json')
@@ -111,8 +132,8 @@ def init_ui():
     # Экран настроек
     settings_cont = pygame_gui.core.UIContainer(pygame.Rect(0, 0, width, height), manager)
     res_drop = pygame_gui.elements.UIDropDownMenu(list({'Полный экран', '1920x1080',
-                                                   '1280x720', '800x600',
-                                                   f'{screen.get_width()}x{screen.get_height()}'}),
+                                                        '1280x720', '800x600',
+                                                        f'{screen.get_width()}x{screen.get_height()}'}),
                                                   f'{screen.get_width()}x{screen.get_height()}',
                                                   pygame.Rect((460 * (width / 1920), 150 * (height / 1080),
                                                                300 * (width / 1920), 30)),
@@ -171,13 +192,18 @@ while done is False:
                 done = True
         if event.type == pygame_gui.UI_DROP_DOWN_MENU_CHANGED:
             if event.ui_element == resolution_dropdown:
-                if event.text != 'Полный экран':
-                    pygame.display.set_mode((int(event.text.split('x')[0]), int(event.text.split('x')[1])))
-                else:
-                    pygame.display.set_mode((0, 0), pygame.NOFRAME)
+                with open('saves/' + save.name, 'w') as file:
+                    if event.text != 'Полный экран':
+                        pygame.display.set_mode((int(event.text.split('x')[0]), int(event.text.split('x')[1])))
+                        file.write(event.text.split('x')[0] + 'x' + event.text.split('x')[1])
+                    else:
+                        pygame.display.set_mode((0, 0), pygame.NOFRAME)
+                        file.write('fullscreen')
+                    file.close()
                 width, height = screen.get_size()
-                temp_res = event.text
                 manager.clear_and_reset()
+                manager.set_window_resolution((width, height))
+                temp_res = event.text
                 (main_container, levels_container, settings_container, play_but,
                  settings_but, exit_butt, back_button_settings, back_button_play, resolution_dropdown) = init_ui()
                 screen.fill((30, 30, 30))
