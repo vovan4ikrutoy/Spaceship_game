@@ -66,12 +66,32 @@
      },
      "#Start_but": {
        "font": {
-         "size": "70"
+         "size": "55"
        },
        "misc":
          {
            "shape": "rectangle"
          }
      },
+     "#Conf_but": {
+       "font": {
+         "size": "25"
+       },
+       "misc":
+         {
+           "shape": "rectangle",
+           "border_width": "5"
+         }
+     },
+     "#Health_bar":{
+       "colours": {
+         "unfilled_bar": "#000000",
+         "filled_bar": "#DDDDDD"
+       },
+       "font": {
+         "size": "1"
+       }
+     },
+
      "@boba": {}
  }

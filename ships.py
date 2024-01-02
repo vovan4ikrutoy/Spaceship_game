@@ -1,5 +1,6 @@
 import math
 import random
+from copy import copy
 from typing import Tuple, Optional, Dict, Iterable
 
 import pygame
@@ -87,6 +88,23 @@ class Ship:
         self.ui_container = None
         self.init_modules(bullets_render_list)
         self.init_ui(manager, cont)
+
+    def take_damage(self, damage):
+        temp_damage = damage
+        if temp_damage > self.shield:
+            temp_damage -= self.shield
+            self.shield = 0
+            if temp_damage > self.armor:
+                temp_damage -= self.armor
+                self.armor = 0
+                if temp_damage >= self.hull:
+                    self.hull = 0
+                else:
+                    self.hull -= temp_damage
+            else:
+                self.armor -= temp_damage
+        else:
+            self.shield -= temp_damage
 
     def set_target(self, target, dist_type: str, dist_const=0):
         if type(target) == tuple:
@@ -406,7 +424,7 @@ class UIButtonWithModule(pygame_gui.elements.UIButton):
         self.self_ship = self_ship
 
 
-class UIButtonWithShip(pygame_gui.elements.UIButton):
+class UIButtonWithTarget(pygame_gui.elements.UIButton):
     def __init__(self, relative_rect: pygame.Rect | Tuple[float, float] | pygame.Vector2,
                  text: str,
                  manager: Optional[IUIManagerInterface] = None,
@@ -422,12 +440,38 @@ class UIButtonWithShip(pygame_gui.elements.UIButton):
                  *,
                  tool_tip_object_id: Optional[ObjectID] = None,
                  text_kwargs: Optional[Dict[str, str]] = None,
-                 tool_tip_text_kwargs: Optional[Dict[str, str]] = None, ship: Ship = None):
+                 tool_tip_text_kwargs: Optional[Dict[str, str]] = None, ship: Ship = None,
+                 img: pygame_gui.elements.UIImage = None):
         super().__init__(relative_rect, text, manager, container, tool_tip_text, starting_height, parent_element,
                          object_id, anchors, allow_double_clicks, generate_click_events_from, visible,
                          tool_tip_object_id=tool_tip_object_id, text_kwargs=text_kwargs,
                          tool_tip_text_kwargs=tool_tip_text_kwargs)
         self.ship = ship
+        self.cont = img
+
+
+class UIButtonWithContainer(pygame_gui.elements.UIButton):
+    def __init__(self, relative_rect: pygame.Rect | Tuple[float, float] | pygame.Vector2,
+                 text: str,
+                 manager: Optional[IUIManagerInterface] = None,
+                 container: Optional[IContainerLikeInterface] = None,
+                 tool_tip_text: str | None = None,
+                 starting_height: int = 1,
+                 parent_element: UIElement = None,
+                 object_id: ObjectID | str | None = None,
+                 anchors: str | UIElement = None,
+                 allow_double_clicks: bool = False,
+                 generate_click_events_from: Iterable[int] = frozenset([pygame.BUTTON_LEFT]),
+                 visible: int = 1,
+                 *,
+                 tool_tip_object_id: Optional[ObjectID] = None,
+                 text_kwargs: Optional[Dict[str, str]] = None,
+                 tool_tip_text_kwargs: Optional[Dict[str, str]] = None, cont: pygame_gui.core.ui_container = None):
+        super().__init__(relative_rect, text, manager, container, tool_tip_text, starting_height, parent_element,
+                         object_id, anchors, allow_double_clicks, generate_click_events_from, visible,
+                         tool_tip_object_id=tool_tip_object_id, text_kwargs=text_kwargs,
+                         tool_tip_text_kwargs=tool_tip_text_kwargs)
+        self.cont = cont
 
 
 class UIButtonWithConfiguration(pygame_gui.elements.UIButton):
@@ -446,12 +490,13 @@ class UIButtonWithConfiguration(pygame_gui.elements.UIButton):
                  *,
                  tool_tip_object_id: Optional[ObjectID] = None,
                  text_kwargs: Optional[Dict[str, str]] = None,
-                 tool_tip_text_kwargs: Optional[Dict[str, str]] = None, configuration: Configuration = None):
+                 tool_tip_text_kwargs: Optional[Dict[str, str]] = None, conf: Configuration = None, ship: Ship = None):
         super().__init__(relative_rect, text, manager, container, tool_tip_text, starting_height, parent_element,
                          object_id, anchors, allow_double_clicks, generate_click_events_from, visible,
                          tool_tip_object_id=tool_tip_object_id, text_kwargs=text_kwargs,
                          tool_tip_text_kwargs=tool_tip_text_kwargs)
-        self.configuration = configuration
+        self.configuration = conf
+        self.ship = ship
 
 
 class ShipLevelHolder:
@@ -482,8 +527,8 @@ class ShipLevelHolder:
                 bullet_render_list):
         return Ship(self.name, self.weight, self.max_speed, self.max_shield, self.max_armor, self.max_hull, self.img,
                     self.pos, manager, cont, bullet_render_list, team=self.team, scale=self.scale,
-                    high_modules=self.high_modules, mid_modules=self.mid_modules, low_modules=self.low_modules,
-                    high_module_slots=self.high_module_slots)
+                    high_modules=copy(self.high_modules), mid_modules=copy(self.mid_modules),
+                    low_modules=copy(self.low_modules), high_module_slots=self.high_module_slots)
 
 
 # Пресеты различный кораблей
@@ -495,7 +540,7 @@ class ScoutShip(ShipLevelHolder):
             img = 'textures/ships/Scout_enemy.png'
         super().__init__('Scout', 5, 6.5, 200, 50, 100,
                          img, pos, team, 2, high_modules, mid_modules,
-                         low_modules, [(-25, -42), (-25, 42)])
+                         low_modules, [(-25, 0)])
 
 
 class DestroyerShip(ShipLevelHolder):

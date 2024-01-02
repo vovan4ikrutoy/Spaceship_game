@@ -1,3 +1,6 @@
+from copy import copy
+from typing import List
+
 from levels import Level
 import pygame
 
@@ -13,6 +16,26 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
     import trigonometry
     import ships
     import pygame_gui
+
+    def redraw_targets():
+        for trg in targets:
+            if trg.ship not in all_ships:
+                targets.remove(trg)
+                trg.hide()
+                trg.cont.hide()
+        for trg in range(len(targets)):
+            ex = width - (trg + 1) * 120 * (width / 1920)
+            targets[trg].set_position((ex, 0))
+            targets[trg].cont.set_position((ex, 0))
+
+    def redraw_targets_hp(targetes):
+        print(targetes)
+        for target in targetes:
+            progress_bars = sorted(target.cont.elements, key=lambda el: el.relative_rect.y)
+            progress_bars[1].set_current_progress(target.ship.shield / target.ship.max_shield)
+            progress_bars[2].set_current_progress(target.ship.armor / target.ship.max_armor)
+            progress_bars[3].set_current_progress(target.ship.hull / target.ship.max_hull)
+
     # Иницалиазация файла стиля кнопок
     with open('data/buttons.json', 'w') as f:
         bb = dict()
@@ -68,26 +91,55 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                                            manager=manager, container=all_buttons_container,
                                            object_id=ObjectID(class_id='@friendly_buttons', object_id='#all_button'))
 
-    ui_scroll_ships = pygame_gui.elements.UIScrollingContainer(pygame.Rect(0, 0, 500, height), manager)
-    ui_scroll_ships.set_scrollable_area_dimensions((500, 1000))
+    ui_scroll_ships = pygame_gui.elements.UIScrollingContainer(pygame.Rect(0, 0, 300 * (width / 1920), height), manager)
+    ui_scroll_ships.set_scrollable_area_dimensions((300 * (width / 1920), height))
+    ui_scroll_confs = pygame_gui.elements.UIScrollingContainer(pygame.Rect(300 * (width / 1920), 0,
+                                                                           500 * (width / 1920), height), manager)
+    ui_scroll_confs.set_scrollable_area_dimensions((500 * (width / 1920), height))
+    ships_buttons = []
+    selected_ship = None
 
     counter = 0
     for i in ship_configurations.keys():
-        ships.UIButtonWithConfiguration(pygame.Rect((0,  counter * 200, 300, 200)), '', manager,
-                                        container=ui_scroll_ships, object_id=ObjectID(class_id='@friendly_buttons',
-                                                                                      object_id='#Start_but'))
+        confs_container = pygame_gui.core.UIContainer(pygame.Rect(0, 0, ui_scroll_confs.rect.width,
+                                                                  len(ship_configurations[i]) * 150), manager,
+                                                      container=ui_scroll_confs)
+        ships_buttons.append(ships.UIButtonWithContainer(pygame.Rect((0, counter * 200 * (height / 1080),
+                                                                      300 * (width / 1920),
+                                                                      200 * (height / 1080))), '', manager,
+                                                         container=ui_scroll_ships,
+                                                         object_id=ObjectID(class_id='@friendly_buttons',
+                                                                            object_id='#Start_but'),
+                                                         cont=confs_container))
+        for j in range(len(ship_configurations[i])):
+            ships.UIButtonWithConfiguration(pygame.Rect((0, (j * 150) * (height / 1080),
+                                                         500 * (width / 1920), 150 * (height / 1080))),
+                                            ship_configurations[i][j].name, manager, confs_container,
+                                            conf=ship_configurations[i][j], ship=i,
+                                            object_id=ObjectID(class_id='@friendly_buttons',
+                                                               object_id='#Conf_but'))
+        confs_container.hide()
         img = pygame.image.load(i.img)
         cof = 160 / img.get_height()
-        pygame_gui.elements.UIImage(pygame.Rect((150 - img.get_width() * cof / 2,
-                                                 100 - img.get_height() * cof / 2 + counter * 200,
-                                                 img.get_width() * cof, img.get_height() * cof)), img, manager,
+        pygame_gui.elements.UIImage(pygame.Rect(((150 - img.get_width() * cof / 2) * (width / 1920),
+                                                 (100 - img.get_height() * cof / 2 + counter * 200) * (height / 1080),
+                                                 img.get_width() * cof * (width / 1920),
+                                                 img.get_height() * cof * (height / 1080))), img, manager,
                                     container=ui_scroll_ships)
         counter += 1
 
-    start_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((width - 300, height - 180, 300, 180)),
+    start_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((width - 300 * (width / 1920),
+                                                                           height - 180 * (height / 1080),
+                                                                           300 * (width / 1920),
+                                                                           180 * (height / 1080))),
                                                 text='Start', manager=manager,
                                                 object_id=ObjectID(class_id='@friendly_buttons',
                                                                    object_id='#Start_but'))
+
+    back_button = pygame_gui.elements.UIButton(pygame.Rect((0, 0, 180 * (width / 1920), 160 * (height / 1080))),
+                                               manager=manager, text='←',
+                                               object_id=ObjectID(object_id='#Title_button', class_id='@boba'))
+    back_button.hide()
 
     # Важно! Список пуль для обработки, он общий для всех кораблей и их модулей
     bullets = []
@@ -200,6 +252,10 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                         ui_scroll.set_scrollable_area_dimensions((0, 0))
                     selected_ships = []
                 elif event.key == pygame.K_c:
+                    for i in targets:
+                        i.hide()
+                        i.cont.hide()
+                    active_target = None
                     targets = []
                     now_targeting = dict()
                 elif event.key == pygame.K_LALT:
@@ -241,6 +297,10 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                 elif pygame.mouse.get_pressed()[0] and pygame.key.get_pressed()[pygame.K_LSHIFT]:
                     is_targeting = True
                     targeting_start = pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1]
+                elif pygame.mouse.get_pressed()[0] and selected_ship is not None and not back_button.is_focused:
+                    all_ships.append(selected_ship.to_ship(manager, ui_scroll, bullets))
+                    all_ships[-1].x, all_ships[-1].y = ((pygame.mouse.get_pos()[0] - cam_x * scale) * (1 / scale),
+                                                        (pygame.mouse.get_pos()[1] - cam_y * scale) * (1 / scale))
             elif event.type == pygame.MOUSEBUTTONUP:
                 if not pygame.mouse.get_pressed()[0] and is_selecting:
                     is_selecting = False
@@ -263,7 +323,13 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                 if event.ui_element == start_button:
                     start_button.hide()
                     ui_scroll_ships.hide()
+                    selected_ship = None
                     started = True
+                elif event.ui_element == back_button:
+                    start_button.show()
+                    ui_scroll_ships.show()
+                    selected_ship = None
+                    back_button.hide()
                 if type(event.ui_element) == ships.UIButtonWithModule:
                     if not event.ui_element.module.is_passive:
                         if event.ui_element.module.target_type == 'enemy':
@@ -271,8 +337,21 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                                 event.ui_element.module.activate(active_target.ship)
                         elif event.ui_element.module.target_type == 'self':
                             event.ui_element.module.activate(event.ui_element.self_ship)
-                elif type(event.ui_element) == ships.UIButtonWithShip:
+                elif type(event.ui_element) == ships.UIButtonWithTarget:
                     active_target = event.ui_element
+                elif type(event.ui_element) == ships.UIButtonWithContainer:
+                    for i in ships_buttons:
+                        i.cont.hide()
+                    event.ui_element.cont.show()
+                elif type(event.ui_element) == ships.UIButtonWithConfiguration:
+                    for i in ships_buttons:
+                        i.cont.hide()
+                    start_button.hide()
+                    ui_scroll_ships.hide()
+                    ui_scroll.hide()
+                    selected_ship = event.ui_element.ship
+                    selected_ship.apply_configuration(event.ui_element.configuration)
+                    back_button.show()
 
                 # Кнопки быстрой активации всех модулей одной категории
                 elif event.ui_element == all_high:
@@ -341,11 +420,22 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
             cam_x -= 8
 
         # Логика
+        del_list = []
         for r_ship in all_ships:
-            r_ship.think(time_delta * game_speed)
-            r_ship.physic(all_ships)
+            if r_ship.hull > 0:
+                r_ship.think(time_delta * game_speed)
+                r_ship.physic(all_ships)
+            else:
+                del_list.append(r_ship)
+        for i in del_list:
+            all_ships.remove(i)
+            redraw_targets()
+            if active_target not in all_ships:
+                active_target = None
+
         for bullet in bullets:
             if bullet.dead:
+                redraw_targets_hp(targets)
                 bullets.remove(bullet)
             else:
                 bullet.think(time_delta * game_speed, all_ships)
@@ -397,6 +487,7 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                 selected_ships = list(selected_ships)
             else:
                 selected_ships = ans
+            selected_ships.sort(key=lambda sh: sh.diagonal, reverse=True)
             counter = 0
             buttons_for_render = []
             for i in selected_ships:
@@ -432,29 +523,59 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                 if i.team == 'enemy' and rect.collidepoint(i.x * scale + cam_x * scale, i.y * scale + cam_y * scale):
                     ans.append(i)
             for i in ans:
-                if now_targeting.get(i) is None and i not in targets and len(now_targeting) + len(targets) < 5:
+                if (now_targeting.get(i) is None and i not in list(map(lambda sh: sh.ship, targets))
+                        and len(now_targeting) + len(targets) < 7):
                     now_targeting[i] = 5
 
         for i in selected_ships:
-            pygame.draw.circle(screen, (100, 100, 255), (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
+            pygame.draw.circle(screen, (100, 100, 255), (i.x * scale + cam_x * scale,
+                                                         i.y * scale + cam_y * scale),
                                (i.diagonal / 2) * scale, 5)
         for i in now_targeting:
-            pygame.draw.circle(screen, (105, 105, 105), (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
+            pygame.draw.circle(screen, (105, 105, 105), (i.x * scale + cam_x * scale,
+                                                         i.y * scale + cam_y * scale),
                                (i.diagonal / 1.8) * scale, 5)
         for i in [getattr(x, 'ship') for x in targets]:
-            pygame.draw.circle(screen, (255, 100, 100), (i.x * scale + cam_x * scale, i.y * scale + cam_y * scale),
+            pygame.draw.circle(screen, (255, 100, 100), (i.x * scale + cam_x * scale,
+                                                         i.y * scale + cam_y * scale),
                                (i.diagonal / 1.9) * scale, 5)
         if active_target is not None:
             pygame.draw.circle(screen, (155, 155, 155), (active_target.rect.x + 50, active_target.rect.y + 50),
                                55, 3)
         temp_selecting = is_selecting
         temp_targeting = is_targeting
+
         ans = []
         for i in now_targeting.keys():
             now_targeting[i] -= time_delta
             if now_targeting[i] < 0:
-                targets.append(ships.UIButtonWithShip(relative_rect=pygame.Rect(1300 - len(targets) * 120, 0, 100, 100),
-                                                      text=i.name, manager=manager, ship=i))
+                temp_target = ships.UIButtonWithTarget(
+                    relative_rect=pygame.Rect(width - (len(targets) + 1) * 120 * (width / 1920), 0,
+                                              100 * (width / 1920), 100 * (width / 1920)),
+                    text='', manager=manager, ship=i)
+                targets.append(temp_target)
+                temp_target.cont = pygame_gui.core.UIContainer(pygame.Rect(temp_target.relative_rect.x,
+                                                                           temp_target.relative_rect.y,
+                                                                           temp_target.rect.width,
+                                                                           temp_target.rect.height * 2), manager)
+                pygame_gui.elements.UIImage(pygame.Rect(0, 0, temp_target.rect.width, temp_target.rect.height), i.img0,
+                                            manager, container=temp_target.cont)
+                pygame_gui.elements.UIProgressBar(pygame.Rect(25 * (width / 1920), 106 * (height / 1080),
+                                                              75 * (width / 1920), 27 * (height / 1080)),
+                                                  manager, container=temp_target.cont,
+                                                  object_id=ObjectID(class_id='@boba',
+                                                                     object_id='#Health_bar'))
+                pygame_gui.elements.UIProgressBar(pygame.Rect(25 * (width / 1920), 139 * (height / 1080),
+                                                              75 * (width / 1920), 27 * (height / 1080)),
+                                                  manager, container=temp_target.cont,
+                                                  object_id=ObjectID(class_id='@boba',
+                                                                     object_id='#Health_bar'))
+                pygame_gui.elements.UIProgressBar(pygame.Rect(25 * (width / 1920), 173 * (height / 1080),
+                                                              75 * (width / 1920), 27 * (height / 1080)),
+                                                  manager, container=temp_target.cont,
+                                                  object_id=ObjectID(class_id='@boba',
+                                                                     object_id='#Health_bar'))
+                redraw_targets_hp(targets)
                 ans.append(i)
         for i in ans:
             del now_targeting[i]
@@ -478,3 +599,5 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                                                                         if ui_scroll.vert_scroll_bar else 0)),
                                        module[2] / 2, width=2)
         pygame.display.flip()
+
+

@@ -2,6 +2,7 @@ import pygame
 import random
 
 import bullets
+import trigonometry
 from texture_manager import load_texture
 
 
@@ -35,6 +36,8 @@ class Module:
         pass
 
     def think(self, delta_time):
+        if self.target is not None and self.target.hull == 0:
+            self.active = False
         if not self.is_passive:
             self.passed += delta_time * random.uniform(0.95, 1.05)
             if self.active:
@@ -44,7 +47,8 @@ class Module:
 
 
 class Turret(Module):
-    def __init__(self, name: str, img, cooldown: float, base_img, gun_img, bullets_render=None, team='player', base_scale=float(1), gun_scale=float(1)):
+    def __init__(self, name: str, img, cooldown: float, base_img, gun_img, bullets_render=None, team='player',
+                 base_scale=float(1), gun_scale=float(1), distance=None):
         super().__init__(name, 'high', img, 'enemy', cooldown)
         self.base_img = pygame.transform.rotozoom(load_texture(base_img), 0, base_scale)
         self.gun_img = pygame.transform.rotozoom(load_texture(gun_img), 0, gun_scale)
@@ -54,6 +58,7 @@ class Turret(Module):
         self.x = 0
         self.y = 0
         self.angle = 0
+        self.distance = distance
 
         self.cached_image_b = None
         self.cached_scaled_b = None
@@ -67,6 +72,10 @@ class Turret(Module):
     def update_info(self, pos, angle):
         self.x, self.y = pos
         self.angle = angle
+        if self.distance is not None and self.target is not None and self.active is True\
+            and trigonometry.distance_between_points((self.x, self.y),
+                                                     (self.target.x, self.target.y)) > self.distance:
+            self.active = False
 
     def render(self, angle: float, scale: float):
         if abs(scale - self.cached_scale_b) > 0.04:
@@ -98,9 +107,9 @@ class StatisWebfier(Turret):
 
 class SmallRailgun(Turret):
     def __init__(self, bullets_render: list, team: str):
-        super().__init__('small railgun', 'small_railgun', 1,
+        super().__init__('small railgun', 'small_railgun', 2,
                          'textures/turrets/basic_base.png', 'textures/turrets/gun.png',
-                         bullets_render, team, 1.5, 1.5)
+                         bullets_render, team, 1.5, 1.5, 1200)
 
     def use(self, target):
         self.bullets.append(bullets.SmallRailgunBullet((self.x, self.y), self.angle, self.team))

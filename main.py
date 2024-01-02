@@ -9,6 +9,7 @@ from pygame_gui.core import ObjectID, UIElement, IContainerLikeInterface
 from pygame_gui.core.interfaces import IUIManagerInterface
 
 import game
+import modules
 import ships
 from levels import init_levels
 
@@ -72,11 +73,11 @@ temp_focus = False
 # Сборки кораблей
 ship_configurations = dict()
 Scout = ships.ScoutShip((0, 0))
-ship_configurations[Scout] = [ships.Configuration('Test Configuration', Scout),
+ship_configurations[Scout] = [ships.Configuration('Test Configuration', Scout, [modules.SmallRailgun]),
                               ships.Configuration('Test Configuration2', Scout)]
 Destroyer = ships.DestroyerShip((0, 0))
-ship_configurations[Destroyer] = [ships.Configuration('Test Configuration', Destroyer),
-                                  ships.Configuration('Test Configuration2', Destroyer)]
+ship_configurations[Destroyer] = [ships.Configuration('Test Conf', Destroyer, [modules.SmallRailgun, modules.SmallRailgun]),
+                                  ships.Configuration('Test Conf2', Destroyer)]
 
 
 def init_ui():
@@ -132,7 +133,7 @@ def init_ui():
     # Экран настроек
     settings_cont = pygame_gui.core.UIContainer(pygame.Rect(0, 0, width, height), manager)
     res_drop = pygame_gui.elements.UIDropDownMenu(list({'Полный экран', '1920x1080',
-                                                        '1280x720', '800x600',
+                                                        '1280x720', '960x540',
                                                         f'{screen.get_width()}x{screen.get_height()}'}),
                                                   f'{screen.get_width()}x{screen.get_height()}',
                                                   pygame.Rect((460 * (width / 1920), 150 * (height / 1080),
@@ -201,6 +202,7 @@ while done is False:
                         file.write('fullscreen')
                     file.close()
                 width, height = screen.get_size()
+                background = pygame.transform.scale(pygame.image.load('textures/UI/main_bg.jpg'), (width, height))
                 manager.clear_and_reset()
                 manager.set_window_resolution((width, height))
                 temp_res = event.text

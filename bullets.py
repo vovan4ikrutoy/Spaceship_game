@@ -6,13 +6,16 @@ from texture_manager import load_texture
 
 
 class Bullet:
-    def __init__(self, pos, angle, radius, speed, damage, img, team):
+    def __init__(self, pos, angle: float, radius: float, speed: float, damage: float, lifetime: float, img: str,
+                 team: str):
         self.x = pos[0]
         self.y = pos[1]
         self.angle = angle
         self.radius = radius
         self.speed = speed
         self.damage = damage
+        self.lifetime = lifetime
+        self.passed = 0
         self.img0 = load_texture(img)
         self.team = team
         self.dead = False
@@ -23,6 +26,9 @@ class Bullet:
     def think(self, delta_time, all_ships):
         self.x += math.cos(math.radians(self.angle)) * self.speed * (delta_time / 0.01666)
         self.y -= math.sin(math.radians(self.angle)) * self.speed * (delta_time / 0.01666)
+        self.passed += delta_time
+        if self.passed >= self.lifetime:
+            self.dead = True
         for ship in all_ships:
             if (ship.team != self.team
                     and (trigonometry.distance_between_points((self.x, self.y), (ship.x, ship.y))
@@ -38,10 +44,10 @@ class Bullet:
         screen.blit(img, rect)
 
     def impact(self, ship, all_ships):
+        ship.take_damage(self.damage)
         self.dead = True
-
 
 
 class SmallRailgunBullet(Bullet):
     def __init__(self, pos, angle, team):
-        super().__init__(pos, angle, 20, 8, 25, 'textures/bullets/bullet.png', team)
+        super().__init__(pos, angle, 20, 20, 25, 1.1, 'textures/bullets/bullet.png', team)
