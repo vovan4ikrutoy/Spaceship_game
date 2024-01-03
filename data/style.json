@@ -83,15 +83,35 @@
            "border_width": "5"
          }
      },
-     "#Health_bar":{
+     "#Shield_bar":{
        "colours": {
          "unfilled_bar": "#000000",
-         "filled_bar": "#DDDDDD"
+         "filled_bar": "#42AAFF",
+         "text_shadow": "#000000"
        },
        "font": {
-         "size": "1"
+         "size": "13"
        }
      },
-
+     "#Armor_bar":{
+       "colours": {
+         "unfilled_bar": "#000000",
+         "filled_bar": "#DDDD99",
+         "text_shadow": "#000000"
+       },
+       "font": {
+         "size": "13"
+       }
+     },
+     "#Hull_bar":{
+       "colours": {
+         "unfilled_bar": "#000000",
+         "filled_bar": "#666666",
+         "text_shadow": "#000000"
+       },
+       "font": {
+         "size": "13"
+       }
+     },
      "@boba": {}
  }

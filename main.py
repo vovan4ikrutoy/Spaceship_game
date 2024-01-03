@@ -76,8 +76,16 @@ Scout = ships.ScoutShip((0, 0))
 ship_configurations[Scout] = [ships.Configuration('Test Configuration', Scout, [modules.SmallRailgun]),
                               ships.Configuration('Test Configuration2', Scout)]
 Destroyer = ships.DestroyerShip((0, 0))
-ship_configurations[Destroyer] = [ships.Configuration('Test Conf', Destroyer, [modules.SmallRailgun, modules.SmallRailgun]),
-                                  ships.Configuration('Test Conf2', Destroyer)]
+ship_configurations[Destroyer] = [
+    ships.Configuration('Test Conf', Destroyer, [modules.SmallRailgun, modules.SmallRailgun, modules.SmallRailgun]),
+    ships.Configuration('Test Conf2', Destroyer)]
+Miner = ships.MinerShip((0, 0))
+ship_configurations[Miner] = [ships.Configuration('bebras', Miner, [modules.MediumRailgun, modules.MediumRailgun])]
+Carrier = ships.CarrierShip((0, 0))
+ship_configurations[Carrier] = [
+    ships.Configuration('bebras', Carrier, [modules.MediumRailgun, modules.MediumRailgun, modules.MediumRailgun])]
+Dominator = ships.DominatorShip((0, 0))
+ship_configurations[Dominator] = [ships.Configuration('bebras', Dominator, [modules.LargeRailgun])]
 
 
 def init_ui():

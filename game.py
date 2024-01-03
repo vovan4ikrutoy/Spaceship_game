@@ -2,10 +2,17 @@ from copy import copy
 from typing import List
 
 from levels import Level
+from texture_manager import load_texture
 import pygame
+import pygame_gui
 
 
 # noinspection SpellCheckingInspection
+
+
+class CustomProgressBar(pygame_gui.elements.UIProgressBar):
+    def status_text(self):
+        return ''
 
 
 def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
@@ -15,7 +22,6 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
 
     import trigonometry
     import ships
-    import pygame_gui
 
     def redraw_targets():
         for trg in targets:
@@ -24,17 +30,16 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                 trg.hide()
                 trg.cont.hide()
         for trg in range(len(targets)):
-            ex = width - (trg + 1) * 120 * (width / 1920)
+            ex = width - (trg + 1) * 120 * min((width / 1920), (height / 1080))
             targets[trg].set_position((ex, 0))
             targets[trg].cont.set_position((ex, 0))
 
     def redraw_targets_hp(targetes):
-        print(targetes)
         for target in targetes:
             progress_bars = sorted(target.cont.elements, key=lambda el: el.relative_rect.y)
-            progress_bars[1].set_current_progress(target.ship.shield / target.ship.max_shield)
-            progress_bars[2].set_current_progress(target.ship.armor / target.ship.max_armor)
-            progress_bars[3].set_current_progress(target.ship.hull / target.ship.max_hull)
+            progress_bars[2].set_current_progress(target.ship.shield / target.ship.max_shield)
+            progress_bars[4].set_current_progress(target.ship.armor / target.ship.max_armor)
+            progress_bars[6].set_current_progress(target.ship.hull / target.ship.max_hull)
 
     # Иницалиазация файла стиля кнопок
     with open('data/buttons.json', 'w') as f:
@@ -540,8 +545,11 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                                                          i.y * scale + cam_y * scale),
                                (i.diagonal / 1.9) * scale, 5)
         if active_target is not None:
-            pygame.draw.circle(screen, (155, 155, 155), (active_target.rect.x + 50, active_target.rect.y + 50),
-                               55, 3)
+            pygame.draw.circle(screen, (155, 155, 155), (active_target.rect.x + 50 * min((width / 1920),
+                                                                                         (height / 1080)),
+                                                         active_target.rect.y + 50 * min((width / 1920),
+                                                                                         (height / 1080))),
+                               55 * min((width / 1920), (height / 1080)), 3)
         temp_selecting = is_selecting
         temp_targeting = is_targeting
 
@@ -550,8 +558,10 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
             now_targeting[i] -= time_delta
             if now_targeting[i] < 0:
                 temp_target = ships.UIButtonWithTarget(
-                    relative_rect=pygame.Rect(width - (len(targets) + 1) * 120 * (width / 1920), 0,
-                                              100 * (width / 1920), 100 * (width / 1920)),
+                    relative_rect=pygame.Rect(width - (len(targets) + 1) * 120 * min((width / 1920), (height / 1080)),
+                                              0,
+                                              100 * min((width / 1920), (height / 1080)),
+                                              100 * min((width / 1920), (height / 1080))),
                     text='', manager=manager, ship=i)
                 targets.append(temp_target)
                 temp_target.cont = pygame_gui.core.UIContainer(pygame.Rect(temp_target.relative_rect.x,
@@ -560,21 +570,30 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                                                                            temp_target.rect.height * 2), manager)
                 pygame_gui.elements.UIImage(pygame.Rect(0, 0, temp_target.rect.width, temp_target.rect.height), i.img0,
                                             manager, container=temp_target.cont)
-                pygame_gui.elements.UIProgressBar(pygame.Rect(25 * (width / 1920), 106 * (height / 1080),
-                                                              75 * (width / 1920), 27 * (height / 1080)),
-                                                  manager, container=temp_target.cont,
-                                                  object_id=ObjectID(class_id='@boba',
-                                                                     object_id='#Health_bar'))
-                pygame_gui.elements.UIProgressBar(pygame.Rect(25 * (width / 1920), 139 * (height / 1080),
-                                                              75 * (width / 1920), 27 * (height / 1080)),
-                                                  manager, container=temp_target.cont,
-                                                  object_id=ObjectID(class_id='@boba',
-                                                                     object_id='#Health_bar'))
-                pygame_gui.elements.UIProgressBar(pygame.Rect(25 * (width / 1920), 173 * (height / 1080),
-                                                              75 * (width / 1920), 27 * (height / 1080)),
-                                                  manager, container=temp_target.cont,
-                                                  object_id=ObjectID(class_id='@boba',
-                                                                     object_id='#Health_bar'))
+                CustomProgressBar(pygame.Rect(25 * (width / 1920), 106 * (height / 1080),
+                                              75 * (width / 1920), 27 * (height / 1080)),
+                                  manager, container=temp_target.cont,
+                                  object_id=ObjectID(class_id='@boba',
+                                                     object_id='#Shield_bar')).maximum_progress = i.max_shield
+                CustomProgressBar(pygame.Rect(25 * (width / 1920), 139 * (height / 1080),
+                                              75 * (width / 1920), 27 * (height / 1080)),
+                                  manager, container=temp_target.cont,
+                                  object_id=ObjectID(class_id='@boba',
+                                                     object_id='#Armor_bar')).maximum_progress = i.max_armor
+                CustomProgressBar(pygame.Rect(25 * (width / 1920), 173 * (height / 1080),
+                                              75 * (width / 1920), 27 * (height / 1080)),
+                                  manager, container=temp_target.cont,
+                                  object_id=ObjectID(class_id='@boba',
+                                                     object_id='#Hull_bar')).maximum_progress = i.max_hull
+                pygame_gui.elements.UIImage(
+                    pygame.Rect(0, 105 * (height / 1080), 20 * (width / 1920), 28 * (height / 1080)),
+                    load_texture('textures/UI/shd.png'), manager, container=temp_target.cont)
+                pygame_gui.elements.UIImage(
+                    pygame.Rect(0, 138 * (height / 1080), 20 * (width / 1920), 28 * (height / 1080)),
+                    load_texture('textures/UI/arm.png'), manager, container=temp_target.cont)
+                pygame_gui.elements.UIImage(
+                    pygame.Rect(0, 172 * (height / 1080), 20 * (width / 1920), 28 * (height / 1080)),
+                    load_texture('textures/UI/hll.png'), manager, container=temp_target.cont)
                 redraw_targets_hp(targets)
                 ans.append(i)
         for i in ans:
@@ -599,5 +618,3 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                                                                         if ui_scroll.vert_scroll_bar else 0)),
                                        module[2] / 2, width=2)
         pygame.display.flip()
-
-

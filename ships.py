@@ -19,7 +19,7 @@ from texture_manager import load_texture
 class Ship:
     def __init__(self, name: str, weight: float, max_speed: float, max_shield: float, max_armor: float, max_hull: float,
                  img: str, pos: tuple, manager: pygame_gui.UIManager, cont: pygame_gui.elements.ui_vertical_scroll_bar,
-                 bullets_render_list, team='player', scale=1, high_modules=None, mid_modules=None,
+                 bullets_render_list, team='player', scale=float(1), high_modules=None, mid_modules=None,
                  low_modules=None, high_module_slots=None):
 
         if high_module_slots is None:
@@ -70,6 +70,7 @@ class Ship:
         self.speed = 0
         self.speed_dir = 0
         self.diagonal = math.sqrt(math.pow(self.rect0.width, 2) + math.pow(self.rect0.height, 2))
+        print(self.diagonal)
 
         # Логические данные
         self.target = None
@@ -280,7 +281,7 @@ class Ship:
             self.cached_scaled = pygame.transform.rotozoom(self.img0, 0, scale)
             self.cached_image = pygame.transform.rotate(self.cached_scaled, self.angle)
             self.cached_scale = scale
-        if abs(self.angle - self.cached_angle) > 5:
+        if abs(self.angle - self.cached_angle) > 200 / self.diagonal * 5:
             self.cached_image = pygame.transform.rotate(self.cached_scaled, self.angle)
             self.cached_angle = self.angle
         rect = self.cached_image.get_rect()
@@ -290,15 +291,10 @@ class Ship:
         # Рендер пушек
         for i in range(len(self.high_modules)):
             if type(self.high_modules[i]).__bases__[0] == modules.Turret:
-                base_img, gun_img = self.high_modules[i].render(self.angle, scale)
+                gun_img = self.high_modules[i].render(scale)
                 center = trigonometry.rotate((0, 0),
                                              (self.high_module_slots[i][0], self.high_module_slots[i][1]),
                                              -math.radians(self.angle))
-
-                rect = base_img.get_rect()
-                rect.center = ((math.floor(self.x) + cam_pos[0] + center[0]) * scale,
-                               (math.floor(self.y) + cam_pos[1] + center[1]) * scale)
-                screen.blit(base_img, rect)
 
                 if self.high_modules[i].target is not None:
                     angle = trigonometry.angle_from_to_point((math.floor(self.x) + center[0],
@@ -501,8 +497,8 @@ class UIButtonWithConfiguration(pygame_gui.elements.UIButton):
 
 class ShipLevelHolder:
     def __init__(self, name: str, weight: float, max_speed: float, max_shield: float, max_armor: float, max_hull: float,
-                 img: str, pos: tuple, team='player', scale=1, high_modules=None, mid_modules=None,
-                 low_modules=None, high_module_slots=None):
+                 img: str, pos: tuple, team='player', high_modules=None, mid_modules=None,
+                 low_modules=None, high_module_slots=None, scale=float(2)):
         self.name = name
         self.weight = weight
         self.max_speed = max_speed
@@ -538,9 +534,9 @@ class ScoutShip(ShipLevelHolder):
             img = 'textures/ships/Scout_player.png'
         else:
             img = 'textures/ships/Scout_enemy.png'
-        super().__init__('Scout', 5, 6.5, 200, 50, 100,
-                         img, pos, team, 2, high_modules, mid_modules,
-                         low_modules, [(-25, 0)])
+        super().__init__('Разведчик', 5, 6.5, 50, 200, 100,
+                         img, pos, team, high_modules, mid_modules,
+                         low_modules, [(-40, 0)])
 
 
 class DestroyerShip(ShipLevelHolder):
@@ -549,6 +545,39 @@ class DestroyerShip(ShipLevelHolder):
             img = 'textures/ships/Destroyer_player.png'
         else:
             img = 'textures/ships/Destroyer_enemy.png'
-        super().__init__('Destroyer', 20, 3, 700, 200, 200,
-                         img, pos, team, 3, high_modules, mid_modules,
-                         low_modules, [(45, 0), (-63, 25), (-63, -25)])
+        super().__init__('Фрегат', 20, 4, 200, 700, 200,
+                         img, pos, team, high_modules, mid_modules,
+                         low_modules, [(40, 0), (-10, 0), (-60, -0)])
+
+
+class MinerShip(ShipLevelHolder):
+    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None):
+        if team == 'player':
+            img = 'textures/ships/Miner_player.png'
+        else:
+            img = 'textures/ships/Miner_enemy.png'
+        super().__init__('Буровик', 30, 3.5, 500, 1500, 300,
+                         img, pos, team, high_modules, mid_modules,
+                         low_modules, [(0, 65), (-60, -60)])
+
+
+class CarrierShip(ShipLevelHolder):
+    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None):
+        if team == 'player':
+            img = 'textures/ships/carrier_player.png'
+        else:
+            img = 'textures/ships/carrier_enemy.png'
+        super().__init__('Эсминец', 70, 2.5, 1500, 3500, 500,
+                         img, pos, team, high_modules, mid_modules,
+                         low_modules, [(150, 0), (-25, 0), (-115, 0)], 1.5)
+
+
+class DominatorShip(ShipLevelHolder):
+    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None):
+        if team == 'player':
+            img = 'textures/ships/Dominator_player.png'
+        else:
+            img = 'textures/ships/Dominator_enemy.png'
+        super().__init__('Доминатор', 150, 1.5, 3000, 10000, 2000,
+                         img, pos, team, high_modules, mid_modules,
+                         low_modules, [(0, 0)], 3)
