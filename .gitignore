@@ -1,0 +1,6 @@
+/build/
+/dist/
+/venv/
+/main.spec/
+/.idea/
+/saves/save.txt

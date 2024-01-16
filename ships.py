@@ -16,11 +16,16 @@ from texture_manager import load_texture
 # noinspection SpellCheckingInspection
 
 
+class CustomProgressBar(pygame_gui.elements.UIProgressBar):
+    def status_text(self):
+        return ''
+
+
 class Ship:
     def __init__(self, name: str, weight: float, max_speed: float, max_shield: float, max_armor: float, max_hull: float,
                  img: str, pos: tuple, manager: pygame_gui.UIManager, cont: pygame_gui.elements.ui_vertical_scroll_bar,
                  bullets_render_list, team='player', scale=float(1), high_modules=None, mid_modules=None,
-                 low_modules=None, high_module_slots=None):
+                 low_modules=None, high_module_slots=None, ai_type='normal'):
 
         if high_module_slots is None:
             high_module_slots = []
@@ -70,7 +75,6 @@ class Ship:
         self.speed = 0
         self.speed_dir = 0
         self.diagonal = math.sqrt(math.pow(self.rect0.width, 2) + math.pow(self.rect0.height, 2))
-        print(self.diagonal)
 
         # Логические данные
         self.target = None
@@ -78,6 +82,9 @@ class Ship:
         self.dist_dir = self.angle
         self.dist_type = 'stop'
         self.dist_const = 0
+        self.targeting_ship = None
+        self.orbit_dir = False
+        self.AI_type = ai_type
 
         # Модули
         self.high_modules = high_modules
@@ -100,6 +107,8 @@ class Ship:
                 self.armor = 0
                 if temp_damage >= self.hull:
                     self.hull = 0
+                    if self.team == 'player':
+                        self.ui_container.elements[0].set_image(load_texture('textures/UI/dead.png'))
                 else:
                     self.hull -= temp_damage
             else:
@@ -133,13 +142,48 @@ class Ship:
                                               i.diagonal)
             except ZeroDivisionError:
                 ang = random.uniform(0, 360)
-                i.x -= trigonometry.clamp(0, 0.2 * self.weight * 27 * -math.cos(ang / 180 * math.pi),
+                i.x -= trigonometry.clamp(0, 0.2 * self.weight * 2 * -math.cos(ang / 180 * math.pi),
                                           i.diagonal)
-                i.y -= trigonometry.clamp(0, 0.2 * self.weight * 27 * math.sin(ang / 180 * math.pi),
+                i.y -= trigonometry.clamp(0, 0.2 * self.weight * 2 * math.sin(ang / 180 * math.pi),
                                           i.diagonal)
                 i.speed *= 0.2
+        self.x = trigonometry.clamp(0, self.x, 12000)
+        self.y = trigonometry.clamp(0, self.y, 12000)
+
+    def super_think(self, all_ships):
+        self.update_ui()
+
+        if self.team == 'enemy':
+            if self.targeting_ship is None or random.randint(1, 10) == 1 or self.targeting_ship.hull == 0:
+                player_ships = [x for x in copy(all_ships) if x.team == 'player']
+                if len(player_ships) > 0:
+                    self.targeting_ship = min(player_ships,
+                                              key=lambda x: trigonometry.distance_between_points((self.x, self.y),
+                                                                                                 (x.x, x.y)))
+                    self.set_target(self.targeting_ship, 'orbit',
+                                    min(self.high_modules, key=lambda x: x.distance).distance
+                                    * (0.5 if self.AI_type == 'normal' else 0.9 if self.AI_type == 'sniper' else 0.25))
+            elif random.randint(1, 150) == 1:
+                player_ships = [x for x in copy(all_ships) if x.team == 'player']
+                self.targeting_ship = random.choice(player_ships)
+                self.set_target(self.targeting_ship, 'orbit', min(self.high_modules,
+                                                                  key=lambda x: x.distance if x.__class__.__bases__[
+                                                                                                  0] == modules.Turret
+                                                                  else 999999).distance * 0.9)
+            if self.targeting_ship is not None:
+                for i in self.high_modules:
+                    if i.__class__.__bases__[0] == modules.Turret:
+                        if i.active is False:
+                            i.activate(self.targeting_ship)
+                        elif i.target != self.targeting_ship:
+                            i.target = self.targeting_ship
+            for i in self.mid_modules:
+                if i.active is False:
+                    i.activate(self)
 
     def think(self, delta_time):
+        self.shield = trigonometry.clamp(0, self.shield + delta_time / 1 * self.max_shield / 60, self.max_shield)
+
         for i in range(len(self.high_module_slots)):
             if i < len(self.high_modules):
                 self.high_modules[i].think(delta_time)
@@ -225,11 +269,11 @@ class Ship:
 
         # Движение корабля
         if self.dist_type == 'point':
-            if trigonometry.distance_between_points((self.x, self.y), self.dist) >= self.max_speed * 15:
+            if trigonometry.distance_between_points((self.x, self.y), self.dist) >= 0.4 * self.diagonal:
                 self.speed_dir = self.angle
                 self.speed = trigonometry.clamp(0, self.speed + self.acceleration, self.max_speed)
             else:
-                if trigonometry.distance_between_points((self.x, self.y), self.dist) >= self.max_speed * 8:
+                if trigonometry.distance_between_points((self.x, self.y), self.dist) >= 0.2 * self.diagonal:
                     self.speed_dir = self.angle
                 self.speed *= 0.95
 
@@ -277,6 +321,7 @@ class Ship:
 
     def render(self, screen, scale, cam_pos):
         # Рендер корабля
+        self.update_ui()
         if abs(scale - self.cached_scale) > 0.04:
             self.cached_scaled = pygame.transform.rotozoom(self.img0, 0, scale)
             self.cached_image = pygame.transform.rotate(self.cached_scaled, self.angle)
@@ -314,16 +359,20 @@ class Ship:
         for i in range(len(self.high_modules)):
             if self.high_modules[i].__bases__[0] == modules.Turret:
                 self.high_modules[i] = self.high_modules[i](bullets_render_list, self.team)
+                self.high_modules[i].affect(self)
             else:
                 self.high_modules[i] = self.high_modules[i]()
+                self.high_modules[i].affect(self)
         for i in range(len(self.mid_modules)):
             self.mid_modules[i] = self.mid_modules[i]()
+            self.mid_modules[i].affect(self)
         for i in range(len(self.low_modules)):
             self.low_modules[i] = self.low_modules[i]()
+            self.low_modules[i].affect(self)
 
     def init_ui(self, manager, cont):
         if self.team == 'player':
-            self.ui_container = pygame_gui.core.UIContainer(relative_rect=pygame.Rect((0, 0), (410, 100)),
+            self.ui_container = pygame_gui.core.UIContainer(relative_rect=pygame.Rect((0, 0), (510, 100)),
                                                             manager=manager,
                                                             container=cont)
 
@@ -331,53 +380,103 @@ class Ship:
                                         image_surface=self.img0,
                                         container=self.ui_container)
 
+            CustomProgressBar(pygame.Rect(105, 0,
+                                          70, 20),
+                              manager, container=self.ui_container,
+                              object_id=ObjectID(class_id='@boba',
+                                                 object_id='#Shield_bar')).maximum_progress = self.max_shield
+            CustomProgressBar(pygame.Rect(105, 30,
+                                          70, 20),
+                              manager, container=self.ui_container,
+                              object_id=ObjectID(class_id='@boba',
+                                                 object_id='#Armor_bar')).maximum_progress = self.max_armor
+            CustomProgressBar(pygame.Rect(105, 60,
+                                          70, 20),
+                              manager, container=self.ui_container,
+                              object_id=ObjectID(class_id='@boba',
+                                                 object_id='#Hull_bar')).maximum_progress = self.max_hull
+            pygame_gui.elements.UIImage(
+                pygame.Rect(80, 0, 20, 20),
+                load_texture('textures/UI/shd.png'), manager, container=self.ui_container)
+            pygame_gui.elements.UIImage(
+                pygame.Rect(80, 30, 20, 20),
+                load_texture('textures/UI/arm.png'), manager, container=self.ui_container)
+            pygame_gui.elements.UIImage(
+                pygame.Rect(80, 60, 20, 20),
+                load_texture('textures/UI/hll.png'), manager, container=self.ui_container)
+
             res = trigonometry.calculate_res(len(self.high_modules))
             res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
-            for rect, i in trigonometry.calculate_rects(len(self.high_modules), 80, 80):
+            for rect, i in trigonometry.calculate_rects(len(self.high_modules), 80, 180):
                 module = self.high_modules[i]
+                img = module.gun_img if module.__class__.__bases__[0] == modules.Turret else load_texture(module.img0)
+                rect1 = pygame.Rect((rect.x + (1 - trigonometry.clamp(0.1, img.get_rect().width /
+                                                                      img.get_rect().height, 1)) * rect.width * 0.5,
+                                     rect.y + (1 - trigonometry.clamp(0.1, img.get_rect().height /
+                                                                      img.get_rect().width, 1)) * rect.height * 0.5,
+                                     rect.width * trigonometry.clamp(0, img.get_rect().width /
+                                                                     img.get_rect().height, 1),
+                                     rect.height * trigonometry.clamp(0, img.get_rect().height /
+                                                                      img.get_rect().width, 1)))
                 UIButtonWithModule(
                     relative_rect=rect,
                     manager=manager,
                     text='',
                     container=self.ui_container,
-                    object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
+                    object_id=ObjectID(class_id='@friendly_buttons', object_id='#fixed' + res_str),
                     module=module,
                     self_ship=self)
+                pygame_gui.elements.UIImage(rect1, img, manager, container=self.ui_container)
 
             res = trigonometry.calculate_res(len(self.mid_modules))
             res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
-            for rect, i in trigonometry.calculate_rects(len(self.mid_modules), 80, 180):
+            for rect, i in trigonometry.calculate_rects(len(self.mid_modules), 80, 280):
                 module = self.mid_modules[i]
                 UIButtonWithModule(
                     relative_rect=rect, manager=manager,
                     text='',
                     container=self.ui_container,
-                    object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
+                    object_id=ObjectID(class_id='@friendly_buttons', object_id='#fixed' + res_str),
                     module=module,
                     self_ship=self)
+                pygame_gui.elements.UIImage(rect, module.img1, manager, container=self.ui_container)
 
             res = trigonometry.calculate_res(len(self.low_modules))
             res_str = '_64' if res == 1 else '_32' if res == 2 else '_16'
-            for rect, i in trigonometry.calculate_rects(len(self.low_modules), 80, 280):
+            for rect, i in trigonometry.calculate_rects(len(self.low_modules), 80, 380):
                 module = self.low_modules[i]
                 UIButtonWithModule(
                     relative_rect=rect, manager=manager,
                     text=module.name,
                     container=self.ui_container,
-                    object_id=ObjectID(class_id='@friendly_buttons', object_id='#' + module.img0 + res_str),
+                    object_id=ObjectID(class_id='@friendly_buttons', object_id='#fixed' + res_str),
                     module=module,
                     self_ship=self)
-
+                pygame_gui.elements.UIImage(rect, module.img1, manager, container=self.ui_container)
             self.ui_container.hide()
+
+    def update_ui(self):
+        if self.ui_container:
+            progress_bars = sorted([x for x in self.ui_container.elements if x.__class__ == CustomProgressBar],
+                                   key=lambda el: el.relative_rect.y)
+            progress_bars[0].set_current_progress(self.shield / self.max_shield)
+            progress_bars[1].set_current_progress(self.armor / self.max_armor)
+            progress_bars[2].set_current_progress(self.hull / self.max_hull)
 
     def show_ui(self, pos):
         self.ui_container.show()
         self.ui_container.set_relative_position((20, pos))
-        return [(button.module, (button.relative_rect.x, pos + button.relative_rect.y), button.relative_rect.width)
-                for button in self.ui_container.elements[1:]]
+        elements = []
+        for i in self.ui_container.elements[1:]:
+            if type(i) == UIButtonWithModule:
+                elements.append(i)
+        return [(button.module, (button.relative_rect.x, pos + button.relative_rect.y), button.relative_rect.width,
+                 button)
+                for button in elements]
 
     def hide_ui(self):
-        self.ui_container.hide()
+        if self.ui_container:
+            self.ui_container.hide()
 
 
 class Configuration:
@@ -497,8 +596,8 @@ class UIButtonWithConfiguration(pygame_gui.elements.UIButton):
 
 class ShipLevelHolder:
     def __init__(self, name: str, weight: float, max_speed: float, max_shield: float, max_armor: float, max_hull: float,
-                 img: str, pos: tuple, team='player', high_modules=None, mid_modules=None,
-                 low_modules=None, high_module_slots=None, scale=float(2)):
+                 img: str, pos: tuple, cost: int, team='player', high_modules=None, mid_modules=None,
+                 low_modules=None, high_module_slots=None, scale=float(2), ai_type='normal'):
         self.name = name
         self.weight = weight
         self.max_speed = max_speed
@@ -507,12 +606,14 @@ class ShipLevelHolder:
         self.max_hull = max_hull
         self.img = img
         self.pos = pos
+        self.cost = cost
         self.team = team
         self.scale = scale
         self.high_modules = high_modules
         self.mid_modules = mid_modules
         self.low_modules = low_modules
         self.high_module_slots = high_module_slots
+        self.ai_type = ai_type
 
     def apply_configuration(self, configuration):
         self.high_modules = configuration.high_modules
@@ -524,60 +625,65 @@ class ShipLevelHolder:
         return Ship(self.name, self.weight, self.max_speed, self.max_shield, self.max_armor, self.max_hull, self.img,
                     self.pos, manager, cont, bullet_render_list, team=self.team, scale=self.scale,
                     high_modules=copy(self.high_modules), mid_modules=copy(self.mid_modules),
-                    low_modules=copy(self.low_modules), high_module_slots=self.high_module_slots)
+                    low_modules=copy(self.low_modules), high_module_slots=self.high_module_slots, ai_type=self.ai_type)
 
 
 # Пресеты различный кораблей
 class ScoutShip(ShipLevelHolder):
-    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None):
+    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None,
+                 ai_type='normal'):
         if team == 'player':
             img = 'textures/ships/Scout_player.png'
         else:
             img = 'textures/ships/Scout_enemy.png'
         super().__init__('Разведчик', 5, 6.5, 50, 200, 100,
-                         img, pos, team, high_modules, mid_modules,
-                         low_modules, [(-40, 0)])
+                         img, pos, 150, team, high_modules, mid_modules,
+                         low_modules, [(-40, 0)], ai_type=ai_type)
 
 
 class DestroyerShip(ShipLevelHolder):
-    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None):
+    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None,
+                 ai_type='normal'):
         if team == 'player':
             img = 'textures/ships/Destroyer_player.png'
         else:
             img = 'textures/ships/Destroyer_enemy.png'
-        super().__init__('Фрегат', 20, 4, 200, 700, 200,
-                         img, pos, team, high_modules, mid_modules,
-                         low_modules, [(40, 0), (-10, 0), (-60, -0)])
+        super().__init__('Фрегат', 12, 4, 250, 700, 200,
+                         img, pos, 500, team, high_modules, mid_modules,
+                         low_modules, [(40, 0), (-10, 0), (-60, -0)], ai_type=ai_type)
 
 
 class MinerShip(ShipLevelHolder):
-    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None):
+    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None,
+                 ai_type='normal'):
         if team == 'player':
             img = 'textures/ships/Miner_player.png'
         else:
             img = 'textures/ships/Miner_enemy.png'
-        super().__init__('Буровик', 30, 3.5, 500, 1500, 300,
-                         img, pos, team, high_modules, mid_modules,
-                         low_modules, [(0, 65), (-60, -60)])
+        super().__init__('Буровик', 30, 3.5, 350, 1400, 300,
+                         img, pos, 1200, team, high_modules, mid_modules,
+                         low_modules, [(0, 65), (-60, -60)], ai_type=ai_type)
 
 
 class CarrierShip(ShipLevelHolder):
-    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None):
+    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None,
+                 ai_type='normal'):
         if team == 'player':
             img = 'textures/ships/carrier_player.png'
         else:
             img = 'textures/ships/carrier_enemy.png'
         super().__init__('Эсминец', 70, 2.5, 1500, 3500, 500,
-                         img, pos, team, high_modules, mid_modules,
-                         low_modules, [(150, 0), (-25, 0), (-115, 0)], 1.5)
+                         img, pos, 3500, team, high_modules, mid_modules,
+                         low_modules, [(150, 0), (-25, 0), (-115, 0)], 1.5, ai_type=ai_type)
 
 
 class DominatorShip(ShipLevelHolder):
-    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None):
+    def __init__(self, pos: tuple, team='player', high_modules=None, mid_modules=None, low_modules=None,
+                 ai_type='normal'):
         if team == 'player':
             img = 'textures/ships/Dominator_player.png'
         else:
             img = 'textures/ships/Dominator_enemy.png'
         super().__init__('Доминатор', 150, 1.5, 3000, 10000, 2000,
-                         img, pos, team, high_modules, mid_modules,
-                         low_modules, [(0, 0)], 3)
+                         img, pos, 10000, team, high_modules, mid_modules,
+                         low_modules, [(0, 0)], 3, ai_type=ai_type)

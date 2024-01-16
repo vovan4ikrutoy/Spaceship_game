@@ -11,7 +11,7 @@ class Module:
         self.name = name
         self.slot_type = slot_type
         self.img0 = img
-        self.img1 = load_texture('textures/modules/' + img + '.png')
+        self.img1 = load_texture('textures/modules/' + img)
         self.target_type = target_type
         self.target = None
         if cooldown < 0:
@@ -32,12 +32,16 @@ class Module:
                 self.passed = self.cooldown * random.uniform(0, 0.15)
                 self.target = target
 
+    def affect(self, ship):
+        pass
+
     def use(self, target):
         pass
 
     def think(self, delta_time):
         if self.target is not None and self.target.hull == 0:
             self.active = False
+            self.target = None
         if not self.is_passive:
             self.passed += delta_time
             if self.active:
@@ -47,9 +51,9 @@ class Module:
 
 
 class Turret(Module):
-    def __init__(self, name: str, img, cooldown: float, gun_img, bullets_render=None, team='player',
+    def __init__(self, name: str, cooldown: float, gun_img, bullets_render=None, team='player',
                  gun_scale=float(1), distance=None):
-        super().__init__(name, 'high', img, 'enemy', cooldown)
+        super().__init__(name, 'high', 'turret.png', 'enemy', cooldown)
         self.gun_img = pygame.transform.rotozoom(load_texture(gun_img), 0, gun_scale)
         self.target = None
         self.bullets = bullets_render
@@ -81,7 +85,7 @@ class Turret(Module):
             self.cached_scaled_g = pygame.transform.rotozoom(self.gun_img, 0, scale)
             self.cached_image_g = pygame.transform.rotate(self.cached_scaled_g, self.angle)
             self.cached_scale_g = scale
-        if abs(self.angle - self.cached_angle_g) > 20:
+        if abs(self.angle - self.cached_angle_g) > 5:
             self.cached_image_g = pygame.transform.rotate(self.cached_scaled_g, self.angle)
             self.cached_angle_g = self.angle
         return self.cached_image_g
@@ -89,7 +93,7 @@ class Turret(Module):
 
 class StatisWebfier(Turret):
     def __init__(self, bullets_render: list, team: str):
-        super().__init__('small railgun', 'small_railgun', 1, 'textures/turrets/gun.png')
+        super().__init__('small railgun', 1, 'textures/turrets/gun.png')
 
     def use(self, target):
         self.target.max_speed *= 0.3
@@ -97,39 +101,103 @@ class StatisWebfier(Turret):
 
 class SmallRailgun(Turret):
     def __init__(self, bullets_render: list, team: str):
-        super().__init__('small railgun', 'small_railgun', 2, 'textures/turrets/gun.png',
-                         bullets_render, team, 1.5, 2000)
+        super().__init__('small railgun', 1, 'textures/turrets/small_railgun.png',
+                         bullets_render, team, 2, 1500)
 
     def use(self, target):
-        self.bullets.append(bullets.SmallRailgunBullet((self.x, self.y), self.angle, self.team))
+        self.bullets.append(bullets.SmallRailgunBullet((self.x, self.y),
+                                                       self.angle + random.uniform(-15, 15), self.team))
 
 
 class MediumRailgun(Turret):
     def __init__(self, bullets_render: list, team: str):
-        super().__init__('small railgun', 'small_railgun', 2, 'textures/turrets/gun.png',
+        super().__init__('small railgun', 3.5, 'textures/turrets/medium_railgun.png',
                          bullets_render, team, 1.5 * 1.75, 3500)
 
     def use(self, target):
-        self.bullets.append(bullets.SmallRailgunBullet((self.x, self.y), self.angle, self.team))
+        self.bullets.append(bullets.MediumRailgunBullet((self.x, self.y),
+                                                        self.angle + random.uniform(-5, 5), self.team))
 
 
 class LargeRailgun(Turret):
     def __init__(self, bullets_render: list, team: str):
-        super().__init__('small railgun', 'small_railgun', 2, 'textures/turrets/gun.png',
-                         bullets_render, team, 1.5 * 1.75 * 1.75, 7000)
+        super().__init__('small railgun', 2, 'textures/turrets/gun.png',
+                         bullets_render, team, 1.5 * 1.75 * 1.75, 1500)
 
     def use(self, target):
         self.bullets.append(bullets.SmallRailgunBullet((self.x, self.y), self.angle, self.team))
 
-        
-class SmallShieldBooster(Module):
-    def __init__(self):
-        super().__init__('heal', 'mid', 'small_shield_booster', 'self', 1)
+
+class SmallRocketLauncher(Turret):
+    def __init__(self, bullets_render: list, team: str):
+        super().__init__('small rck launc', 4, 'textures/turrets/small_rocket_l.png',
+                         bullets_render, team, 2, 3000)
 
     def use(self, target):
-        target.shield += 200
+        self.bullets.append(bullets.SmallRocket((self.x, self.y), self.angle, self.team, target))
 
 
-class SmallShieldReinforcement(Module):
+class MediumRocketLauncher(Turret):
+    def __init__(self, bullets_render: list, team: str):
+        super().__init__('small rck launc', 6, 'textures/turrets/medium_rocket_l.png',
+                         bullets_render, team, 2.5, 4000)
+
+    def use(self, target):
+        self.bullets.append(bullets.MediumRocket((self.x, self.y), self.angle, self.team, target))
+
+
+class IonGun(Turret):
+    def __init__(self, bullets_render: list, team: str):
+        super().__init__('ion gun', 1.5, 'textures/turrets/ion_gun.png',
+                         bullets_render, team, 2, 2000)
+
+    def use(self, target):
+        self.bullets.append(bullets.IonBullet((self.x, self.y), self.angle, self.team))
+
+        
+class ShieldBooster(Module):
+    def __init__(self, heal=50):
+        super().__init__('heal', 'mid', 'small_shield_booster.png',
+                         'self', 3.5)
+        self.heal = heal
+
+    def use(self, target):
+        target.shield = trigonometry.clamp(0, target.shield + target.max_shield * 0.15, target.max_shield)
+
+
+class ShieldReinforcement(Module):
     def __init__(self):
-        super().__init__('shd rein', 'low', 'small_shield_reinforcment', 'self', -1)
+        super().__init__('shd rein', 'low', 'small_shield_reinforcment.png',
+                         'self', -1)
+
+    def affect(self, ship):
+        ship.max_shield *= 1.2
+        ship.shield = ship.max_shield
+
+
+class ArmorRein(Module):
+    def __init__(self):
+        super().__init__('arm rein', 'low', 'arm_rein.png',
+                         'self', -1)
+
+    def affect(self, ship):
+        ship.max_armor *= 1.15
+        ship.armor = ship.max_armor
+
+
+class ArmorRepair(Module):
+    def __init__(self):
+        super().__init__('arm rein', 'mid', 'armor_rep.png',
+                         'self', 5)
+
+    def use(self, target):
+        target.armor = trigonometry.clamp(0, target.armor + target.max_armor * 0.15, target.max_armor)
+
+
+class Acceleration(Module):
+    def __init__(self):
+        super().__init__('accel', 'low', 'ab.png',
+                         'self', -1)
+
+    def affect(self, ship):
+        ship.max_speed *= 1.3

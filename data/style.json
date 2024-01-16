@@ -113,5 +113,64 @@
          "size": "13"
        }
      },
-     "@boba": {}
+     "@boba": {},
+     "@friendly_buttons": {},
+     "#fixed_64": {
+        "colours": {
+            "normal_border": "#333333",
+            "normal_bg": "#444444"
+        },
+        "misc": {
+            "shape": "ellipse",
+            "border_width": "4"
+        }
+     },
+   "#fixed_32": {
+        "colours": {
+            "normal_border": "#333333",
+            "normal_bg": "#444444"
+        },
+        "misc": {
+            "shape": "ellipse",
+            "border_width": "2"
+        }
+     },
+   "#fixed_16": {
+        "colours": {
+            "normal_border": "#333333",
+            "normal_bg": "#444444"
+        },
+        "misc": {
+            "shape": "ellipse",
+            "border_width": "1"
+        }
+     },
+   "#Money_but": {
+     "colours":
+         {
+             "normal_text": "#FFFF00"
+         },
+     "font": {
+         "size": "20"
+       }
+   },
+   "#Money_but_all": {
+     "colours":
+         {
+             "normal_text": "#FFFF00"
+         },
+     "font": {
+         "size": "30",
+         "bold": "1"
+       }
+   },
+   "#Level_score": {
+     "colours":
+         {
+             "normal_text": "#22FF22"
+         },
+     "font": {
+         "size": "30"
+       }
+   }
  }
