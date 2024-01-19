@@ -9,7 +9,7 @@ from texture_manager import load_texture
 
 class Bullet:
     def __init__(self, pos, angle: float, radius: float, speed: float, damage: float, lifetime: float, img: str,
-                 team: str):
+                 team: str, size=float(1)):
         self.x = pos[0]
         self.y = pos[1]
         self.angle = angle
@@ -18,7 +18,7 @@ class Bullet:
         self.damage = damage
         self.lifetime = lifetime
         self.passed = 0
-        self.img0 = load_texture(img)
+        self.img0 = pygame.transform.rotozoom(load_texture(img), 0, size)
         self.team = team
         self.dead = False
 
@@ -96,7 +96,7 @@ class SmallRocket(Rocket):
 
 class MediumRocket(Rocket):
     def __init__(self, pos, angle, team, target):
-        super().__init__(pos, angle, 50, 7.5, 250, 20,
+        super().__init__(pos, angle, 70, 7.5, 350, 20,
                          'textures/bullets/medium_rocket.png', team, target, 500, 2.5)
 
 
@@ -104,6 +104,19 @@ class SmallRailgunBullet(Bullet):
     def __init__(self, pos, angle, team):
         super().__init__(pos, angle, 20, 30, 25, 1.1,
                          'textures/bullets/small_railgun_b.png', team)
+
+
+class Flame(Bullet):
+    def __init__(self, pos, angle, team):
+        super().__init__(pos, angle, 110, 60 * random.uniform(0.8, 1), 2.5, 0.55,
+                         'textures/bullets/flame.png', team, 2.5)
+
+    def think(self, delta_time, all_ships):
+        self.speed *= 0.98
+        super().think(delta_time, all_ships)
+
+    def impact(self, ship, all_ships):
+        ship.take_damage(self.damage)
 
 
 class IonBullet(Bullet):
@@ -119,4 +132,4 @@ class IonBullet(Bullet):
 
 class MediumRailgunBullet(Bullet):
     def __init__(self, pos, angle, team):
-        super().__init__(pos, angle, 30, 50, 100, 1.1, 'textures/bullets/medium_railgun_b.png', team)
+        super().__init__(pos, angle, 30, 75, 100, 1.1, 'textures/bullets/medium_railgun_b.png', team)

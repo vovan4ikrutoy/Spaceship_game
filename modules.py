@@ -112,7 +112,7 @@ class SmallRailgun(Turret):
 class MediumRailgun(Turret):
     def __init__(self, bullets_render: list, team: str):
         super().__init__('small railgun', 3.5, 'textures/turrets/medium_railgun.png',
-                         bullets_render, team, 1.5 * 1.75, 3500)
+                         bullets_render, team, 1.5 * 1.75, 2800)
 
     def use(self, target):
         self.bullets.append(bullets.MediumRailgunBullet((self.x, self.y),
@@ -135,6 +135,15 @@ class SmallRocketLauncher(Turret):
 
     def use(self, target):
         self.bullets.append(bullets.SmallRocket((self.x, self.y), self.angle, self.team, target))
+
+
+class Flamethrower(Turret):
+    def __init__(self, bullets_render: list, team: str):
+        super().__init__('flamethrower', 0.1, 'textures/turrets/flame_throw.png',
+                         bullets_render, team, 2, 1450)
+
+    def use(self, target):
+        self.bullets.append(bullets.Flame((self.x, self.y), self.angle + random.uniform(-9, 9), self.team))
 
 
 class MediumRocketLauncher(Turret):

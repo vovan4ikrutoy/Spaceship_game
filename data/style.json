@@ -172,5 +172,14 @@
      "font": {
          "size": "30"
        }
+   },
+   "#Score": {
+     "colours":
+         {
+             "normal_text": "#CCCCCC"
+         },
+     "font": {
+         "size": "50"
+       }
    }
  }

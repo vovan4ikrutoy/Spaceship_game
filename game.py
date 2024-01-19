@@ -1,6 +1,5 @@
 import os
 import random
-import sys
 import time
 
 from levels import Level
@@ -60,8 +59,18 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                                 manager=manager,
                                 text='Ты выиграл!', container=win_screen,
                                 object_id=ObjectID(object_id='#Title_text', class_id='@boba'))
+    stats = pygame_gui.elements.UILabel(
+        pygame.Rect(((width - 900) / 2, 350 * (height / 1080), 900, 200 * (height / 1080))),
+        manager=manager,
+        text='Деньги: 55%  Время: 6:33', container=win_screen,
+        object_id=ObjectID(object_id='#Score', class_id='@boba'))
+    score_label = pygame_gui.elements.UILabel(
+        pygame.Rect(((width - 900) / 2, 420 * (height / 1080), 900, 200 * (height / 1080))),
+        manager=manager,
+        text='Счет: 1867(345+678+500)!', container=win_screen,
+        object_id=ObjectID(object_id='#Score', class_id='@boba'))
     win_but = pygame_gui.elements.UIButton(
-        pygame.Rect((560 * (width / 1920), 500 * (height / 1080), 800 * (width / 1920), 200 * (height / 1080))),
+        pygame.Rect((560 * (width / 1920), 600 * (height / 1080), 800 * (width / 1920), 200 * (height / 1080))),
         text='Продолжить', manager=manager,
         container=win_screen,
         object_id=ObjectID(object_id='#Title_button', class_id='@boba'))
@@ -100,6 +109,25 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
     money_label = pygame_gui.elements.UILabel(pygame.Rect((width - 300, 50 * (height / 1080),
                                                            250, 50)), 'Деньги: ' + str(money), manager,
                                               object_id=ObjectID(class_id='@boba', object_id='#Money_but_all'))
+
+    back_but = pygame_gui.elements.UIButton(pygame.Rect((width - 100) / 2, 0, 100,
+                                                        100), '←', manager,
+                                            object_id=ObjectID(class_id='@friendly_buttons', object_id='#Title_button'))
+
+    hint_txt = pygame_gui.elements.UITextBox(f'<font pixel_size=32>{'Подсказка: ' + level.hint}</font>',
+                                             pygame.Rect(60 + 300 * (width / 1920), 0,
+                                                         width - (60 + 300 * (width / 1920)) - 300, 100),
+                                             manager, object_id=ObjectID(class_id='@friendly_buttons',
+                                                                         object_id='#Title_sub'))
+    hint_txt.hide()
+    hint_but = pygame_gui.elements.UIButton(pygame.Rect(width - 420, 0, 120 * (width / 1920),
+                                                        120 * (height / 1080)), '', manager)
+    hint_img = pygame_gui.elements.UIImage(pygame.Rect(width - 420, 0, 120 * (width / 1920),
+                                                       120 * (height / 1080)),
+                                           load_texture('textures/UI/help.png'), manager)
+    if level.hint == '':
+        hint_but.hide()
+        hint_img.hide()
 
     ui_scroll_ships = pygame_gui.elements.UIScrollingContainer(pygame.Rect(0, 0, 60 + 300 * (width / 1920), height),
                                                                manager)
@@ -172,6 +200,7 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
     think_counter = 0
     start_time = time.time()
     end_time = 0
+    start_money = money
     score = 0
 
     # Камера
@@ -213,7 +242,6 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
         for event in pygame.event.get():
             manager.process_events(event)
             if event.type == pygame.QUIT:
-                done = True
                 return 0
             elif event.type == pygame.KEYDOWN and started:
                 if event.key == pygame.K_r:
@@ -357,6 +385,10 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                         start_button.hide()
                         ui_scroll_ships.hide()
                         money_label.hide()
+                        back_but.show()
+                        hint_but.hide()
+                        hint_img.hide()
+                        hint_txt.hide()
                         for i in ships_buttons:
                             i.cont.hide()
                         selected_ship = None
@@ -365,6 +397,7 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                     start_button.show()
                     ui_scroll_ships.show()
                     selected_ship = None
+                    back_but.show()
                     back_button.hide()
                 if type(event.ui_element) == ships.UIButtonWithModule:
                     if not event.ui_element.module.is_passive:
@@ -383,6 +416,7 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                     for i in ships_buttons:
                         i.cont.hide()
                     start_button.hide()
+                    back_but.hide()
                     ui_scroll_ships.hide()
                     selected_ship = event.ui_element.ship
                     selected_ship.apply_configuration(event.ui_element.configuration)
@@ -395,6 +429,12 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                     return 1
                 elif event.ui_element == res_but:
                     return main(screen, level, ship_configurations)
+                elif event.ui_element == back_but:
+                    return 1
+                elif event.ui_element == hint_but:
+                    hint_but.hide()
+                    hint_img.hide()
+                    hint_txt.show()
 
                 # Кнопки быстрой активации всех модулей одной категории
                 elif event.ui_element == all_high:
@@ -515,11 +555,19 @@ def main(screen: pygame.Surface, level: Level, ship_configurations: dict):
                 started = False
                 [i.set_target((0, 0), 'stop') for i in all_ships]
                 lose_screen.show()
+                back_but.hide()
             elif len([x for x in all_ships if x.team == 'enemy']) == 0:
                 started = False
                 [i.set_target((0, 0), 'stop') for i in all_ships]
                 end_time = time.time()
-                score = trigonometry.clamp(0, 1000 - round(time.time() - start_time) * 3, 1000) + money + 500
+                score = trigonometry.clamp(0, 1000 - round(time.time() - start_time) * 3, 1000) + round(
+                    money / start_money * 1000) + 500
+                stats.set_text(f'Время: {time.gmtime(end_time - start_time).tm_min}: '
+                               f'{time.gmtime(end_time - start_time).tm_sec}  Деньги: '
+                               f' {round((money / start_money) * 100)}%')
+                score_label.set_text(f'Счет: {str(score)} ({1000 - round(time.time() - start_time) * 3}+'
+                                     f'{round(money / start_money * 1000)}+500)')
+                back_but.hide()
                 win_screen.show()
 
         # Рендеринг

@@ -9,7 +9,6 @@ from pygame_gui.core import ObjectID, UIElement, IContainerLikeInterface
 from pygame_gui.core.interfaces import IUIManagerInterface
 
 import game
-import levels
 import modules
 import ships
 from levels import init_levels
@@ -99,9 +98,18 @@ ship_configurations[Miner] = [ships.Configuration('Снайпер', Miner, [modu
                                                   [modules.ArmorRepair], [modules.ArmorRein])]
 Carrier = ships.CarrierShip((0, 0))
 ship_configurations[Carrier] = [
-    ships.Configuration('bebras', Carrier, [modules.MediumRailgun, modules.MediumRailgun, modules.MediumRailgun]),
-    ships.Configuration('bebras2', Carrier,
-                        [modules.MediumRocketLauncher, modules.MediumRocketLauncher, modules.MediumRocketLauncher])
+    ships.Configuration('Щит императора', Carrier, [modules.MediumRailgun, modules.MediumRailgun, modules.MediumRailgun],
+                        [modules.ShieldBooster, modules.ShieldBooster],
+                        [modules.ShieldReinforcement, modules.ShieldReinforcement, modules.ShieldReinforcement, modules.ArmorRein]),
+    ships.Configuration('Контроль дистанции', Carrier,
+                        [modules.Flamethrower, modules.MediumRocketLauncher, modules.MediumRocketLauncher],
+                        [modules.ArmorRepair, modules.ArmorRepair],
+                        [modules.ArmorRein, modules.ArmorRein]),
+    ships.Configuration('Берсерк', Carrier,
+                        [modules.Flamethrower, modules.Flamethrower, modules.Flamethrower],
+                        [],
+                        [modules.ArmorRein, modules.ArmorRein, modules.ArmorRein, modules.ArmorRein,
+                         modules.Acceleration, modules.Acceleration])
 ]
 Dominator = ships.DominatorShip((0, 0))
 ship_configurations[Dominator] = [ships.Configuration('bebras', Dominator, [modules.LargeRailgun])]
@@ -160,6 +168,12 @@ def init_ui():
                                                   text='←',
                                                   object_id=ObjectID(object_id='#Title_button', class_id='@boba'),
                                                   container=levels_cont)
+    final_but = pygame_gui.elements.UIButton(pygame.Rect((200 * (width / 1920), 1500 * (height / 1920),
+                                                          1500 * (width / 1920), 200 * (height / 1080))),
+                                             'Результаты!', manager, container=levels_cont,
+                                             object_id=ObjectID(object_id='#Title_button', class_id='@boba'))
+    if scores[-1] == 0:
+        final_but.set_position((-1000, -1000))
     levels_cont.hide()
 
     # Экран настроек
@@ -179,22 +193,17 @@ def init_ui():
                                                            900, 100)),
                                               'Сбросить настройки', manager, settings_cont,
                                               object_id=ObjectID(object_id='#Title_button', class_id='@boba'))
-    pygame_gui.elements.UILabel(pygame.Rect((460 * (width / 1920), (height - (140 * (height / 1080))),
-                                             1000 * (width / 1920), 100)),
-                                manager=manager, text=r'Как то тут пустовато ¯\_☹_/¯',
-                                container=settings_cont,
-                                object_id=ObjectID(object_id='#Settings', class_id='@boba'))
     back_button_set = pygame_gui.elements.UIButton(pygame.Rect((50, 50, 180, 120)), manager=manager,
                                                    text='←',
                                                    object_id=ObjectID(object_id='#Title_button', class_id='@boba'),
                                                    container=settings_cont)
     settings_cont.hide()
     return (main_cont, levels_cont, settings_cont, play, settings, exit_but, back_button_set, back_button_pl, res_drop,
-            reset_butt)
+            reset_butt, final_but)
 
 
 (main_container, levels_container, settings_container, play_but,
- settings_but, exit_butt, back_button_settings, back_button_play, resolution_dropdown, reset_but) = init_ui()
+ settings_but, exit_butt, back_button_settings, back_button_play, resolution_dropdown, reset_but, final_bu) = init_ui()
 main_container.show()
 
 
@@ -241,9 +250,25 @@ while done is False:
                 main_container.show()
                 screen.blit(background, (0, 0))
             elif event.ui_element == reset_but:
-                [x.hide() if type(x) == pygame_gui.elements.UILabel and len(x.text) > 3 else None
+                [x.set_text('') if type(x) == pygame_gui.elements.UILabel and len(x.text) > 3 else None
                  for x in levels_container.elements]
                 scores = [0 for _ in range(len(levels_list))]
+                write_settings()
+            elif event.ui_element == final_bu:
+                levels_container.hide()
+                screen.blit(background, (0, 0))
+                pygame_gui.elements.UILabel(pygame.Rect((0, 0, width, height / 3)), 'Поздравляем!', manager,
+                                            object_id=ObjectID(object_id='#Title_text', class_id='@boba'))
+                pygame_gui.elements.UILabel(pygame.Rect((0, height / 3.6, width, height / 3)),
+                                            f'Ваш счет: {sum(scores)}',
+                                            manager,
+                                            object_id=ObjectID(object_id='#Title_text', class_id='@boba'))
+                pygame_gui.elements.UIButton(pygame.Rect((width / 6, height / 1.5, width / 1.5, height / 4)),
+                                             'Выход', manager,
+                                             object_id=ObjectID(object_id='#Title_button', class_id='@boba'))
+            elif event.ui_element.text == 'Выход':
+                write_settings()
+                exit()
             elif type(event.ui_element) == UIButtonWithLevel and \
                     (event.ui_element.level.number == 0 or scores[event.ui_element.level.number - 1] != 0):
                 result = game.main(screen, event.ui_element.level, ship_configurations)
@@ -286,7 +311,7 @@ while done is False:
                 temp_res = event.text
                 (main_container, levels_container, settings_container, play_but,
                  settings_but, exit_butt, back_button_settings, back_button_play, resolution_dropdown,
-                 reset_but) = init_ui()
+                 reset_but, final_bu) = init_ui()
                 screen.fill((30, 30, 30))
                 settings_container.show()
 
